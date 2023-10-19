@@ -8,12 +8,13 @@
 #include <string>
 
 #define FILENAME_SIZE 256
+#define SIZE_LENGTH 3
 
 class FS_Track{
 private:
 
 public:
-    FS_Track();
+    FS_Track(uint8_t, uint8_t[], uint64_t);
     ~FS_Track();
 
     struct RegData{
@@ -55,7 +56,7 @@ public:
     };
 
     uint8_t opcode_opts{};
-    uint8_t size[3]{};
+    uint8_t size[SIZE_LENGTH]{};
     uint64_t id{};
 
     uint8_t fs_track_getOpcode();

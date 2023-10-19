@@ -3,10 +3,10 @@
 
 /* Constructors */
 
-FS_Track::FS_Track() {
-    this->opcode_opts;
-    this->size;
-    this->id;
+FS_Track::FS_Track(uint8_t opcode_opts, uint8_t size[], uint64_t id) {
+    this->opcode_opts = opcode_opts;
+    memcpy(this->size,size, SIZE_LENGTH * sizeof(uint8_t));
+    this->id = id;
 }
 
 FS_Track::~FS_Track() = default;
