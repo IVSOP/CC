@@ -40,12 +40,12 @@ FS_Track::UpdateFileBlocksData::UpdateFileBlocksData(uint64_t file_id, uint32_t 
 
 FS_Track::UpdateFileBlocksData::~UpdateFileBlocksData() = default;
 
-FS_Track::GetFileBlocksData::GetFileBlocksData(struct in_addr ip, std::vector<uint32_t> block_numbers) {
+FS_Track::PostFileBlocksData::PostFileBlocksData(struct in_addr ip, std::vector<uint32_t> block_numbers) {
     this->ip = ip;
     this->block_numbers = std::vector(block_numbers);
 }
 
-FS_Track::GetFileBlocksData::~GetFileBlocksData() = default;
+FS_Track::PostFileBlocksData::~PostFileBlocksData() = default;
 
 FS_Track::ErrorMessageData::ErrorMessageData(std::string details) {
     this->details = std::string();
@@ -125,19 +125,19 @@ FS_Track::UpdateFileBlocksData FS_Track::UpdateFileBlocks_read_data() {
     return FS_Track::UpdateFileBlocksData(file_id, block_number);
 }
 
-void FS_Track::GetFileBlocks_send_data(struct in_addr ip, std::vector<uint32_t>& block_numbers) {
-    FS_Track::GetFileBlocksData data = FS_Track::GetFileBlocksData(ip, block_numbers);
+void FS_Track::PostFileBlocks_send_data(struct in_addr ip, std::vector<uint32_t>& block_numbers) {
+    FS_Track::PostFileBlocksData data = FS_Track::PostFileBlocksData(ip, block_numbers);
 
     // TODO Send data trough socket
 }
 
-FS_Track::GetFileBlocksData FS_Track::GetFileBlocks_read_data() {
+FS_Track::PostFileBlocksData FS_Track::PostFileBlocks_read_data() {
     // TODO from socket, read data to struct
 
     struct in_addr ip;
     std::vector<uint32_t> block_numbers;
 
-    return FS_Track::GetFileBlocksData(ip, block_numbers);
+    return FS_Track::PostFileBlocksData(ip, block_numbers);
 }
 
 void FS_Track::ErrorMessage_send_data(std::string& details) {

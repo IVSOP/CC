@@ -39,12 +39,12 @@ public:
         ~UpdateFileBlocksData();
     };
 
-    struct GetFileBlocksData{
+    struct PostFileBlocksData{
         struct in_addr ip;
         std::vector<uint32_t> block_numbers;
 
-        GetFileBlocksData(struct in_addr, std::vector<uint32_t>);
-        ~GetFileBlocksData();
+        PostFileBlocksData(struct in_addr, std::vector<uint32_t>);
+        ~PostFileBlocksData();
     };
 
     struct ErrorMessageData{
@@ -75,8 +75,8 @@ public:
     void UpdateFileBlocks_send_data(uint64_t id, uint32_t block_number);
     UpdateFileBlocksData UpdateFileBlocks_read_data();
 
-    void GetFileBlocks_send_data(struct in_addr ip, std::vector<uint32_t>& block_numbers);
-    GetFileBlocksData GetFileBlocks_read_data();
+    void PostFileBlocks_send_data(struct in_addr ip, std::vector<uint32_t>& block_numbers);
+    PostFileBlocksData PostFileBlocks_read_data();
 
     void ErrorMessage_send_data(std::string& details);
     ErrorMessageData ErrorMessage_read_data();
