@@ -3,7 +3,7 @@ project(TP2)
 
 set(CMAKE_CXX_STANDARD 17)
 
-SET(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -pedantic -Wno-unused-parameter -mavx2") # -O2??? -ftree-vectorize -fopt-info-vec-missed or all or optimized
+SET(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -pedantic -Wno-unused-parameter") # -O2??? -ftree-vectorize -fopt-info-vec-missed or all or optimized
 # SET(GCC_COVERAGE_LINK_FLAGS    "-lgcov")
 
 SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")

@@ -2,7 +2,7 @@
 
 DIR="build"
 
-if cmake -DGLFW_BUILD_DOCS=OFF -S . -B $DIR; then
+if cmake -S . -B $DIR; then
 	printf "\n"
 	if make -j$(nproc) -C $DIR; then
 		printf "\n"
