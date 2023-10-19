@@ -2,12 +2,12 @@
 
 uint8_t FS_Track::fs_track_getOpcode() {
     uint8_t opcode = this->opcode_opts;
-    return ((opcode && 0xFE) >> 1);
+    return ((opcode & 0xFE) >> 1);
 }
 
 uint8_t FS_Track::fs_track_getOpt() {
     uint8_t opt = this->opcode_opts;
-    return ((opt && 0x01) >> 1);
+    return (opt & 0x01);
 }
 uint32_t FS_Track::fs_track_getSize() {
     uint32_t ans = 0;

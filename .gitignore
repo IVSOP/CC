@@ -48,3 +48,7 @@ build/
 .vscode
 debug/
 .idea
+
+# Mac files
+.DS_Store
+
