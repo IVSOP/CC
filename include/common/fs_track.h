@@ -5,4 +5,11 @@
 #ifndef TP2_FS_TRACK_H
 #define TP2_FS_TRACK_H
 
+class FS_Track{
+private:
+    
+public:
+
+};
+
 #endif //TP2_FS_TRACK_H

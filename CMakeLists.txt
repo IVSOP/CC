@@ -11,9 +11,9 @@ SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
 
 include_directories(include)
 
-add_executable(Server src/server/main.cpp src/common/read_header.cpp)
+add_executable(Server src/server/main.cpp src/common/fs_transfer.cpp)
 
-add_executable(Node src/client/main.cpp src/common/read_header.cpp)
+add_executable(Node src/client/main.cpp src/common/fs_transfer.cpp)
 
 target_include_directories(Server PUBLIC include/common)
 target_include_directories(Node PUBLIC include/common)
