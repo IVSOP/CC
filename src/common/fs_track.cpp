@@ -66,6 +66,7 @@ uint8_t FS_Track::fs_track_getOpt() {
     uint8_t opt = this->opcode_opts;
     return (opt & 0x01);
 }
+
 uint32_t FS_Track::fs_track_getSize() {
     uint32_t ans = 0;
     auto* ptr = static_cast<uint8_t *> (this->size);
@@ -75,6 +76,7 @@ uint32_t FS_Track::fs_track_getSize() {
 
     return ans;
 }
+
 uint64_t FS_Track::fs_track_getId() {
     return this->id;
 }
