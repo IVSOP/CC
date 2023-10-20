@@ -14,7 +14,7 @@ class FS_Track{
 private:
     void set_Size(uint32_t);
 public:
-    FS_Track(uint8_t, uint8_t[], uint64_t, void*);
+    FS_Track(uint8_t, bool, uint8_t[], uint64_t, void*);
     ~FS_Track();
 
     struct RegData{

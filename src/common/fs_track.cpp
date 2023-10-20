@@ -5,8 +5,8 @@
 
 /* Constructors */
 
-FS_Track::FS_Track(uint8_t opcode_opts, uint8_t size[], uint64_t id, void *data) {
-    this->opcode_opts = opcode_opts;
+FS_Track::FS_Track(uint8_t opcode, bool opts, uint8_t size[], uint64_t id, void *data) {
+    this->opcode_opts = ((opcode_opts << 1) + opts);
     memcpy(this->size, size, SIZE_LENGTH * sizeof(uint8_t));
     this->id = id;
     this->data = data;
@@ -94,6 +94,8 @@ uint32_t FS_Track::fs_track_getSize() {
 uint64_t FS_Track::fs_track_getId() {
     return this->id;
 }
+
+
 
 /**
  * Sets FS_Track data with desired RegData structs
