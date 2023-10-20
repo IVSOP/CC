@@ -1,10 +1,13 @@
 #include "TCP_socket.h"
-
+#include "errors.h"
 #include <unistd.h>
+#include "socket_common.h"
 
-ServerTCPSocket::ServerTCPSocket() {
+ServerTCPSocket::ServerTCPSocket()
+: serverfd(-1)
+{
 	if ((serverfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		perror("Error creating socket");
+		print_error("Error creating socket");
         exit(EXIT_FAILURE);
 	}
 
@@ -15,12 +18,12 @@ ServerTCPSocket::ServerTCPSocket() {
 	int opt = 1;
 	// Forcefully attaching socket to the port 9090
     if (setsockopt(serverfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-        perror("Error setting socket options");
+        print_error("Error setting socket options");
         exit(EXIT_FAILURE);
     }
 
 	if (bind(serverfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        perror("Error binding socket");
+        print_error("Error binding socket");
         exit(EXIT_FAILURE);
     }	
 }
@@ -31,7 +34,7 @@ ServerTCPSocket::~ServerTCPSocket() {
 
 void ServerTCPSocket::socketListen() const {
 	if (listen(serverfd, MAX_CONNECTIONS_IN_QUEUE) < 0) {
-        perror("Error listening for connections");
+        print_error("Error listening for connections");
         exit(EXIT_FAILURE);
     }
 }
@@ -40,9 +43,10 @@ void ServerTCPSocket::socketListen() const {
 // NOT responsibility of this class to close new socket
 ServerTCPSocket::SocketInfo ServerTCPSocket::acceptClient() const {
 	SocketInfo socketInfo;
-	int clientSocket = accept(serverfd, &socketInfo.addr, nullptr);
+	socklen_t addrlen = sizeof(struct sockaddr_in);
+	int clientSocket = accept(serverfd, reinterpret_cast<struct sockaddr *>(&socketInfo.addr), &addrlen);
     if (clientSocket < 0) {
-        perror("Error accepting connection");
+        print_error("Error accepting connection");
         exit(EXIT_FAILURE);
     }
 	socketInfo.sockfd = clientSocket;
@@ -75,18 +79,28 @@ ssize_t ServerTCPSocket::SocketInfo::sendData(const void *buf, size_t len) {
 
 
 
-ClientTCPSocket::ClientTCPSocket(const std::string &ipv4) {
-	if (inet_pton(AF_INET, ipv4.c_str(), &addr.sin_addr) <= 0) {
-        perror("Invalid address/ Address not supported");
+ClientTCPSocket::ClientTCPSocket(const std::string &ipv4)
+: clientfd(-1)
+{
+	if ((clientfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+		print_error("Error creating socket");
         exit(EXIT_FAILURE);
-    }
+	}
+
+	setIPv4(ipv4, &addr);
 
 	this->addr.sin_family = AF_INET;
 	this->addr.sin_port = htons(TCP_PORT);
 
+	// int opt = 1;
+    // if (setsockopt(clientfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+    //     print_error("Error setting socket options");
+    //     exit(EXIT_FAILURE);
+    // }
+
 	int status;
-	if ((status = connect(clientfd, (struct sockaddr*)&addr, sizeof(addr))) < 0) {
-        perror("Connection Failed");
+	if ((status = connect(clientfd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr))) < 0) {
+        print_error("Connection Failed");
         exit(EXIT_FAILURE);
     }
 }

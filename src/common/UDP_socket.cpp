@@ -1,10 +1,13 @@
 #include "UDP_socket.h"
 #include <unistd.h>
 #include "socket_common.h"
+#include "errors.h"
 
 #define MAXLINE 1024
 
-NodeUDPSocket :: NodeUDPSocket() {
+NodeUDPSocket :: NodeUDPSocket()
+: node_fd(-1)
+{
     //Create socket fd
     if ((node_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
         perror("Error creating UDP socket");
@@ -20,15 +23,17 @@ NodeUDPSocket :: NodeUDPSocket() {
     if ( bind(node_fd, (const struct sockaddr *)&node_addr,  
             sizeof(node_addr)) < 0 ) 
     { 
-        perror("Error binding UDP socket");
+        print_error("Error binding UDP socket");
         exit(EXIT_FAILURE); 
     } 
 }
 
-NodeUDPSocket::NodeUDPSocket(const std::string &ipv4) {
+NodeUDPSocket::NodeUDPSocket(const std::string &ipv4)
+: node_fd(-1)
+{
 	//Create socket fd
     if ((node_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
-        perror("Error creating UDP socket");
+        print_error("Error creating UDP socket");
         exit(EXIT_FAILURE); 
     } 
 
@@ -43,7 +48,7 @@ NodeUDPSocket::NodeUDPSocket(const std::string &ipv4) {
     // Bind the socket with the server address 
     if ( bind(node_fd, (const struct sockaddr *)&node_addr, sizeof(node_addr)) < 0 ) 
     {
-        perror("Error binding");
+        print_error("Error binding");
         exit(EXIT_FAILURE); 
     }
 }
