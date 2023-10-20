@@ -2,7 +2,7 @@
 #ifndef TP2_FS_TRACK_H
 #define TP2_FS_TRACK_H
 
-#include <stdint.h>
+#include <cstdint>
 #include <netinet/in.h>
 #include <vector>
 #include <string>
@@ -12,13 +12,13 @@
 
 class FS_Track{
 private:
-
+    void set_Size(uint32_t);
 public:
-    FS_Track(uint8_t, uint8_t[], uint64_t);
+    FS_Track(uint8_t, uint8_t[], uint64_t, void*);
     ~FS_Track();
 
     struct RegData{
-        char filename[FILENAME_SIZE]{};
+        char filename[FILENAME_SIZE];
 
         RegData(char*);
         ~RegData();
@@ -55,9 +55,11 @@ public:
         ~ErrorMessageData();
     };
 
-    uint8_t opcode_opts{};
-    uint8_t size[SIZE_LENGTH]{};
-    uint64_t id{};
+    uint8_t opcode_opts;
+    uint8_t size[SIZE_LENGTH];
+    uint64_t id;
+    void* data;
+
 
     uint8_t fs_track_getOpcode();
 
@@ -67,20 +69,20 @@ public:
 
     uint64_t fs_track_getId();
 
-    void Reg_send_data(char* filename);
-    RegData Reg_read_data();
+    void Reg_set_data(const std::vector<RegData>& files_name);
+    std::vector<FS_Track::RegData> Reg_get_data();
 
-    void IDAssignment_send_data(char* filename, uint64_t id);
-    IDAssignmentData IDAssignment_read_data();
+    void IDAssignment_set_data(const std::vector<IDAssignmentData>& data);
+    std::vector<IDAssignmentData> IDAssignment_get_data();
 
-    void UpdateFileBlocks_send_data(uint64_t id, uint32_t block_number);
-    UpdateFileBlocksData UpdateFileBlocks_read_data();
+    void UpdateFileBlocks_set_data(const std::vector<UpdateFileBlocksData>& data);
+    std::vector<UpdateFileBlocksData> UpdateFileBlocks_get_data();
 
-    void PostFileBlocks_send_data(struct in_addr ip, std::vector<uint32_t>& block_numbers);
-    PostFileBlocksData PostFileBlocks_read_data();
+    void PostFileBlocks_set_data(const std::vector<PostFileBlocksData>& data);
+    std::vector<PostFileBlocksData> PostFileBlocks_get_data();
 
-    void ErrorMessage_send_data(std::string& details);
-    ErrorMessageData ErrorMessage_read_data();
+    void ErrorMessage_set_data(std::string& details);
+    ErrorMessageData ErrorMessage_get_data();
 };
 
 #endif //TP2_FS_TRACK_H
