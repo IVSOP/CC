@@ -6,7 +6,7 @@
 /* Constructors */
 
 FS_Track::FS_Track(uint8_t opcode, bool opts, uint8_t size[], uint64_t id, void *data) {
-    this->opcode_opts = ((opcode_opts << 1) + opts);
+    this->opcode_opts = ((opcode << 1) + opts);
     memcpy(this->size, size, SIZE_LENGTH * sizeof(uint8_t));
     this->id = id;
     this->data = data;
