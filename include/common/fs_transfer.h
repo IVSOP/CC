@@ -15,7 +15,7 @@
 
 // deve ser 1044
 // sizeof direto daria 1048
-#define FS_PACKET_SIZE sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t) + sizeof(FS_Data)
+#define FS_TRANSFER_PACKET_SIZE sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t) + sizeof(FS_Data)
 
 // enviar dados de um bloco
 struct BlockData {
@@ -76,7 +76,7 @@ struct FS_Transfer_Packet {
 
 Struct nao deve ter padding em elementos, e (muito) provavelmente nao tem
 Contudo, ela tem 1044B, e isso nao fica alinhado num array de structs, entao o compilador faz padding para 1048 colocando bytes inuteis no fim
-Ao fazer memcpy etc, esses bytes vao ser ignorados, e o tamanho 1044 ja esta definido em FS_PACKET_SIZE
+Ao fazer memcpy etc, esses bytes vao ser ignorados, e o tamanho 1044 ja esta definido em FS_TRANSFER_PACKET_SIZE
 Checks abaixo verificam que esta tudo alinhado, ignorando os trailing bytes na struct principal
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!! Nunca usar sizeof da struct em memcpy e assim, senao andamos a mandar os bytes inuteis para a socket

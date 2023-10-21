@@ -9,6 +9,7 @@
 int main () {
 	printf("%lu\n", offsetof(FS_Transfer_Packet, data));
 	printf("%lu\n", sizeof(FS_Transfer_Packet));
+	printf("%lu\n", FS_TRANSFER_PACKET_SIZE);
 	printf("%lu\n", sizeof(FS_Data) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t));
 	ServerTCPSocket server = ServerTCPSocket();
 	server.socketListen();
