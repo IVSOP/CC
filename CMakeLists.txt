@@ -18,14 +18,14 @@ include_directories(${OPENSSL_INCLUDE_DIR})
 # include_directories(include)
 
 add_executable(Server
-	src/server/main.cpp
+		src/server/server_main.cpp
 	src/common/fs_track.cpp
 	src/common/TCP_socket.cpp
 	src/common/convert_types.cpp
 	src/common/fs_track_test.cpp)
 
 add_executable(Node
-	src/client/main.cpp
+		src/client/client_main.cpp
 	src/client/fs_transfer.cpp
 	src/client/checksum.cpp
 	src/common/fs_track.cpp
