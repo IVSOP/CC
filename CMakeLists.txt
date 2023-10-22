@@ -28,9 +28,9 @@ add_executable(Node
 src/client/main.cpp
 src/common/fs_transfer.cpp
 src/common/fs_track.cpp
-	src/common/TCP_socket.cpp
-	src/common/convert_types.cpp
-	src/common/UDP_socket.cpp)
+src/common/TCP_socket.cpp
+src/common/convert_types.cpp
+src/common/UDP_socket.cpp)
 
 target_include_directories(Server
 	PUBLIC include/common)
