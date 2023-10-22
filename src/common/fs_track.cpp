@@ -2,17 +2,20 @@
 
 #include "fs_track.h"
 #include "TCP_socket.h"
+#include "convert_types.h"
 
 /* Constructors */
 
-FS_Track::FS_Track(uint8_t opcode, bool opts, uint8_t size[], uint64_t id, void *data) {
+FS_Track::FS_Track(uint8_t opcode, bool opts, uint64_t id) {
     this->opcode_opts = ((opcode << 1) + opts);
-    memcpy(this->size, size, SIZE_LENGTH * sizeof(uint8_t));
+    FS_Track::set_Size(0);
     this->id = id;
-    this->data = data;
+    this->data = nullptr;
 }
 
-FS_Track::~FS_Track() = default;
+FS_Track::~FS_Track(){
+    delete[] (char*) this->data;
+}
 
 FS_Track::RegData::RegData(char *filename) {
     int len = strlen(filename);
@@ -69,7 +72,71 @@ void FS_Track::set_Size(uint32_t bytes) {
     this->size[2] = (std::uint8_t) ((bytes) & 0xFF);
 }
 
+void FS_Track::set_data(void* buf, uint32_t size){
+    this->data = new char[size];
+    memcpy(this->data, buf, size);
+
+    this->set_Size(size);
+}
+
 /* private Functions end */
+
+void FS_Track::fs_track_read_buffer(void* buf, ssize_t size){
+    if(size < 4){
+        perror("No data to read.");
+
+        return;
+    }
+
+    char* buffer = (char*) buf;
+
+    uint32_t curPos = 0;
+
+    memcpy(&(this->opcode_opts), buffer, 1);
+    ++curPos;
+
+    memcpy(this->size, &buffer[1], 3);
+    curPos += 3;
+
+    bool hasID = this->fs_track_getOpt() == 1;
+    uint32_t dataSize = this->fs_track_getSize();
+
+    if(hasID){
+        memcpy(&(this->id), &buffer[curPos], 8);
+        curPos += 8;
+    }
+
+    if(dataSize > 0) this->set_data(&buffer[curPos], dataSize);
+}
+
+std::pair<char*, uint32_t> FS_Track::fs_track_to_buffer(){
+    uint32_t dataSize = this->fs_track_getSize();
+    uint32_t bufferSize = 4 + dataSize;
+
+    bool hasID = this->fs_track_getOpt() == 1;
+    if(hasID) bufferSize += 8;
+
+    char* buffer = (char*) new char[bufferSize];
+
+    uint32_t curPos = 0;
+
+    memcpy(&buffer[curPos], &this->opcode_opts, 1);
+    ++curPos;
+
+    memcpy(&buffer[curPos], this->size, 3);
+    curPos += 3;
+
+    if(hasID) {
+        memcpy(&buffer[curPos], &this->id, 8);
+        curPos += 8;
+    }
+
+    if(dataSize > 0){
+        memcpy(&buffer[curPos], this->data, dataSize);
+    }
+
+    return std::pair<char*, uint32_t>(buffer, bufferSize);
+}
 
 uint8_t FS_Track::fs_track_getOpcode() {
     uint8_t opcode = this->opcode_opts;
@@ -82,13 +149,7 @@ uint8_t FS_Track::fs_track_getOpt() {
 }
 
 uint32_t FS_Track::fs_track_getSize() {
-    uint32_t ans = 0;
-    auto *ptr = reinterpret_cast<uint8_t *> (&ans);
-    ptr[1] = this->size[0];
-    ptr[2] = this->size[1];
-    ptr[3] = this->size[2];
-
-    return ans;
+    return ((this->size[0] << 16) + (this->size[1] << 8) + (this->size[2]));
 }
 
 uint64_t FS_Track::fs_track_getId() {
@@ -105,33 +166,29 @@ void FS_Track::Reg_set_data(const std::vector<RegData> &data) {
     // Serialized bytes
     auto *serializedData = new std::vector<uint8_t>();
 
-    int lenSize = 4;
-    uint32_t totalBytes = 0;
+    uint32_t totalBytes = 4;
+
+    push_uint32_into_vector_uint8(serializedData, data.size());
 
     // For each struct
     for (const auto &fileData: data) {
 
         // Filename len
         uint32_t len = (uint32_t) strnlen(fileData.filename, FILENAME_SIZE);
-
-        // Serialize filename len byte by byte
-        for (int i = 0; i < lenSize; i++) {
-            serializedData->emplace_back((std::uint8_t) ((len >> (i * 8)) & 0xFF));
-        }
+        push_uint32_into_vector_uint8(serializedData, len);
 
         // Serialize filename byte by byte
         for (uint32_t i = 0; i < len; i++) {
             serializedData->emplace_back(fileData.filename[i]);
-            totalBytes++;
         }
 
         // Update data's total bytes
-        totalBytes += (lenSize + len);
+        totalBytes += (4 + len);
     }
 
     // Update FS_Track
-    FS_Track::set_Size(totalBytes);
-    this->data = serializedData;
+    FS_Track::set_data(serializedData->data(), totalBytes);
+    delete serializedData;
 }
 
 /**
@@ -140,8 +197,10 @@ void FS_Track::Reg_set_data(const std::vector<RegData> &data) {
  */
 std::vector<FS_Track::RegData> FS_Track::Reg_get_data() {
     // Serialized data
-    std::vector<uint8_t> serializedData = *reinterpret_cast<std::vector<uint8_t> *>(this->data);
-    uint32_t len = serializedData.size();
+    char* serializedData = (char*) this->data;
+
+    uint32_t i = 0;
+    uint32_t len = vptr_to_uint32(serializedData, &i);
 
     if(len == 0) {
         perror("No data received");
@@ -155,12 +214,9 @@ std::vector<FS_Track::RegData> FS_Track::Reg_get_data() {
     char filename[FILENAME_SIZE];
 
     // For each byte of data
-    for (uint32_t i = 0; i < len;) {
+    for (uint32_t k = 0; k < len; k++) {
         // Get filename len
-        filename_len = ((std::uint32_t) serializedData[i++]);
-        filename_len |= ((std::uint32_t) serializedData[i++]) << 8;
-        filename_len |= ((std::uint32_t) serializedData[i++]) << 16;
-        filename_len |= ((std::uint32_t) serializedData[i++]) << 24;
+        filename_len = vptr_to_uint32(serializedData, &i);
 
         // Get file name
         for (uint32_t j = 0; j < filename_len; j++) filename[j] = (char) serializedData[i++];
@@ -180,41 +236,31 @@ void FS_Track::IDAssignment_set_data(const std::vector<IDAssignmentData> &data) 
     // Serialized bytes
     auto *serializedData = new std::vector<uint8_t>();
 
-    int lenSize = 4;
-    int idSize = 8;
-    uint32_t totalBytes = 0;
+    uint32_t totalBytes = 4;
+
+    push_uint32_into_vector_uint8(serializedData, data.size());
 
     // For each struct
     for (const auto &fileData: data) {
 
-        uint64_t fileId = fileData.file_id;
-
-        // Serialize filename fileId byte by byte
-        for (int i = 0; i < idSize; i++) {
-            serializedData->emplace_back((std::uint8_t) ((fileId >> (i * 8)) & 0xFF));
-        }
+        push_uint64_into_vector_uint8(serializedData, fileData.file_id);
 
         // Filename len
         uint32_t len = (uint32_t) strnlen(fileData.filename, FILENAME_SIZE);
-
-        // Serialize filename len byte by byte
-        for (int i = 0; i < lenSize; i++) {
-            serializedData->emplace_back((std::uint8_t) ((len >> (i * 8)) & 0xFF));
-        }
+        push_uint32_into_vector_uint8(serializedData, len);
 
         // Serialize filename byte by byte
         for (uint32_t i = 0; i < len; i++) {
             serializedData->emplace_back(fileData.filename[i]);
-            totalBytes++;
         }
 
         // Update data's total bytes
-        totalBytes += (idSize + lenSize + len);
+        totalBytes += (8 + 4 + len);
     }
 
     // Update FS_Track
-    FS_Track::set_Size(totalBytes);
-    this->data = serializedData;
+    this->set_data(serializedData->data(), totalBytes);
+    delete serializedData;
 }
 
 /**
@@ -223,8 +269,10 @@ void FS_Track::IDAssignment_set_data(const std::vector<IDAssignmentData> &data) 
  */
 std::vector<FS_Track::IDAssignmentData> FS_Track::IDAssignment_get_data() {
     // Serialized data
-    std::vector<uint8_t> serializedData = *reinterpret_cast<std::vector<uint8_t> *>(this->data);
-    uint32_t len = serializedData.size();
+    char* serializedData = (char*) this->data;
+
+    uint32_t i = 0;
+    uint32_t len = vptr_to_uint32(serializedData, &i);
 
     if(len == 0) {
         perror("No data received");
@@ -239,22 +287,12 @@ std::vector<FS_Track::IDAssignmentData> FS_Track::IDAssignment_get_data() {
     char filename[FILENAME_SIZE];
 
     // For each byte of data
-    for (uint32_t i = 0; i < len;) {
+    for (uint32_t k = 0; k < len; k++) {
         // Get file id
-        fileId = ((std::uint64_t) serializedData[i++]);
-        fileId |= ((std::uint64_t) serializedData[i++]) << 8;
-        fileId |= ((std::uint64_t) serializedData[i++]) << 16;
-        fileId |= ((std::uint64_t) serializedData[i++]) << 24;
-        fileId |= ((std::uint64_t) serializedData[i++]) << 32;
-        fileId |= ((std::uint64_t) serializedData[i++]) << 40;
-        fileId |= ((std::uint64_t) serializedData[i++]) << 48;
-        fileId |= ((std::uint64_t) serializedData[i++]) << 56;
+        fileId = vptr_to_uint64(serializedData, &i);
 
         // Get filename len
-        filename_len = ((std::uint32_t) serializedData[i++]);
-        filename_len |= ((std::uint32_t) serializedData[i++]) << 8;
-        filename_len |= ((std::uint32_t) serializedData[i++]) << 16;
-        filename_len |= ((std::uint32_t) serializedData[i++]) << 24;
+        filename_len = vptr_to_uint32(serializedData, &i);
 
         // Get file name
         for (uint32_t j = 0; j < filename_len; j++) filename[j] = (char) serializedData[i++];
@@ -266,30 +304,32 @@ std::vector<FS_Track::IDAssignmentData> FS_Track::IDAssignment_get_data() {
     return deserializedData;
 }
 
+// TODO No update não podiamos usar a mesma estrutura do post?
+
 /**
  * Sets FS_Track data with desired UpdateFileBlocksData structs
  * @param data
  */
 void FS_Track::UpdateFileBlocks_set_data(const std::vector<UpdateFileBlocksData>& data) {
     // Serialized bytes
-    auto *serializedData = new std::vector<uint32_t>();
+    auto *serializedData = new std::vector<uint8_t>();
 
-    uint32_t totalBytes = 0;
+    uint32_t totalBytes = 4;
+    push_uint32_into_vector_uint8(serializedData, (uint32_t) data.size());
 
     // For each struct
     for(const auto& fileBlock : data){
         // Serialized file Id
-        serializedData->emplace_back((std::uint32_t)(fileBlock.file_id & 0xFFFFFFFF));
-        serializedData->emplace_back((std::uint32_t)((fileBlock.file_id >> 32) & 0xFFFFFFFF));
+        push_uint64_into_vector_uint8(serializedData, fileBlock.file_id);
 
         // Serialize block number
-        serializedData->emplace_back(fileBlock.block_number);
+        push_uint32_into_vector_uint8(serializedData, fileBlock.block_number);
 
         totalBytes += 12;
     }
 
-    FS_Track::set_Size(totalBytes);
-    this->data = serializedData;
+    this->set_data(serializedData->data(), totalBytes);
+    delete serializedData;
 }
 
 /**
@@ -298,8 +338,10 @@ void FS_Track::UpdateFileBlocks_set_data(const std::vector<UpdateFileBlocksData>
  */
 std::vector<FS_Track::UpdateFileBlocksData> FS_Track::UpdateFileBlocks_get_data() {
     // Serialized data
-    std::vector<uint32_t> serializedData = *reinterpret_cast<std::vector<uint32_t> *>(this->data);
-    uint32_t len = serializedData.size();
+    char* serializedData = (char*) this->data;
+
+    uint32_t i = 0;
+    uint32_t len = vptr_to_uint32(serializedData, &i);
 
     if(len == 0) {
         perror("No data received");
@@ -312,13 +354,12 @@ std::vector<FS_Track::UpdateFileBlocksData> FS_Track::UpdateFileBlocks_get_data(
     uint64_t file_id;
     uint32_t block_number;
 
-    for(uint32_t i = 0; i < len;){
+    for(uint32_t j = 0; j < len; j++){
         // Deserialize file id
-        file_id = (std::uint64_t) serializedData[i++];
-        file_id |= ((std::uint64_t) serializedData[i++]) << 32;
+        file_id = vptr_to_uint64(serializedData, &i);
 
         // Deserialize block number
-        block_number = serializedData[i++];
+        block_number = vptr_to_uint32(serializedData, &i);
 
         deserializedData.emplace_back(file_id, block_number);
     }
@@ -332,25 +373,34 @@ std::vector<FS_Track::UpdateFileBlocksData> FS_Track::UpdateFileBlocks_get_data(
  */
 void FS_Track::PostFileBlocks_set_data(const std::vector<FS_Track::PostFileBlocksData> &data) {
     // Serialized bytes
-    auto *serializedData = new std::vector<uint32_t>();
+    auto *serializedData = new std::vector<uint8_t>();
 
-    uint32_t totalBytes = 0;
+    uint32_t totalBytes = 4;
+    uint32_t dataSize = (uint32_t) data.size();
+
+    push_uint32_into_vector_uint8(serializedData, dataSize);
 
     // For each struct
     for (const auto &node_blocks: data) {
         //Serialize ip and total number of blocks
-        serializedData->emplace_back(node_blocks.ip.s_addr);
-        serializedData->emplace_back((uint32_t) node_blocks.block_numbers.size());
+        push_uint32_into_vector_uint8(serializedData, node_blocks.ip.s_addr);
+
+        uint32_t totalBlocks = node_blocks.block_numbers.size();
+
+        push_uint32_into_vector_uint8(serializedData, totalBlocks);
 
         // Serialize blocks' number
-        for (auto block: node_blocks.block_numbers) serializedData->emplace_back(block);
+        for (auto block: node_blocks.block_numbers) {
+            push_uint32_into_vector_uint8(serializedData, block);
+        }
 
         totalBytes += (8 + (node_blocks.block_numbers.size() * 4));
     }
 
     // Update FS_Track
-    FS_Track::set_Size(totalBytes);
-    this->data = serializedData;
+    this->set_data(serializedData->data(), totalBytes);
+
+    delete serializedData;
 }
 
 /**
@@ -360,8 +410,11 @@ void FS_Track::PostFileBlocks_set_data(const std::vector<FS_Track::PostFileBlock
 std::vector<FS_Track::PostFileBlocksData> FS_Track::PostFileBlocks_get_data() {
     auto deserializedData = std::vector<FS_Track::PostFileBlocksData>();
 
-    std::vector<uint32_t> serializedData = *reinterpret_cast<std::vector<uint32_t> *>(this->data);
-    uint32_t len = serializedData.size();
+    char* serializedData = (char*) this->data;
+    uint32_t i = 0;
+
+    // Calculate total number of structs sent
+    uint32_t len = vptr_to_uint32(serializedData, &i);
 
     if(len == 0) {
         perror("No data received");
@@ -372,14 +425,22 @@ std::vector<FS_Track::PostFileBlocksData> FS_Track::PostFileBlocks_get_data() {
     struct in_addr ip = in_addr();
     uint32_t totalBlocks;
 
-    for (uint32_t i = 0; i < len;) {
-        ip.s_addr = serializedData[i++];
-        totalBlocks = serializedData[i++];
+    // For each struct sent
+    for (uint32_t k = 0; k < len;k++) {
+        // Get Node ip
+        ip.s_addr = vptr_to_uint32(serializedData, &i);
 
-        std::vector<uint32_t> block_numbers = std::vector<uint32_t>(totalBlocks, 0);
+        // Calculate total number of blocks sent
+        totalBlocks = vptr_to_uint32(serializedData, &i);
 
-        for (uint32_t j = 0; j < totalBlocks && i < len; j++) {
-            block_numbers.emplace_back(serializedData[i++]);
+        std::vector<uint32_t> block_numbers = std::vector<uint32_t>();
+
+        // For each block sent
+        for (uint32_t j = 0; j < totalBlocks; j++) {
+            // Get block number
+            uint32_t block_number = vptr_to_uint32(serializedData, &i);
+
+            block_numbers.emplace_back(block_number);
         }
 
         deserializedData.emplace_back(ip, block_numbers);
@@ -399,16 +460,16 @@ void FS_Track::ErrorMessage_set_data(std::string &details) {
 
     serializedData->reserve(totalBytes);
 
-    serializedData->emplace_back((std::uint8_t)(len & 0xFF));
-    serializedData->emplace_back((std::uint8_t)((len >> 8) & 0xFF));
-    serializedData->emplace_back((std::uint8_t)((len >> 16) & 0xFF));
-    serializedData->emplace_back((std::uint8_t)((len >> 24) & 0xFF));
+    push_uint32_into_vector_uint8(serializedData, len);
+
 
     for(uint32_t i = 0; i < len; i++){
-        serializedData->emplace_back(details[i++]);
+        serializedData->emplace_back(details[i]);
     }
 
-    this->data = serializedData;
+    this->set_data(serializedData->data(), totalBytes);
+
+    delete serializedData;
 }
 
 /**
@@ -418,23 +479,19 @@ void FS_Track::ErrorMessage_set_data(std::string &details) {
 FS_Track::ErrorMessageData FS_Track::ErrorMessage_get_data() {
     auto deserializedData = std::string();
 
-    std::vector<uint8_t> serializedData = *reinterpret_cast<std::vector<uint8_t> *>(this->data);
-    uint32_t len = serializedData.size();
+    char* serializedData = (char*) this->data;
     uint32_t i = 0;
 
-    if(len == 0) {
+    uint32_t filename_len = vptr_to_uint32(serializedData, &i);
+
+    if(filename_len == 0) {
         perror("No data received");
 
         return std::string();
     }
 
-    uint32_t filename_len = ((std::uint32_t) serializedData[i++]);
-    filename_len |= ((std::uint32_t) serializedData[i++]) << 8;
-    filename_len |= ((std::uint32_t) serializedData[i++]) << 16;
-    filename_len |= ((std::uint32_t) serializedData[i++]) << 24;
-
     // Get file name
     for (uint32_t j = 0; j < filename_len; j++) deserializedData.push_back((char) serializedData[i++]);
 
-    return deserializedData;
+    return FS_Track::ErrorMessageData(deserializedData);
 }

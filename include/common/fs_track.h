@@ -13,8 +13,10 @@
 class FS_Track{
 private:
     void set_Size(uint32_t);
+    void set_data(void*, uint32_t size);
 public:
-    FS_Track(uint8_t, bool, uint8_t[], uint64_t, void*);
+    FS_Track() = default;
+    FS_Track(uint8_t, bool, uint64_t);
     ~FS_Track();
 
     struct RegData{
@@ -60,6 +62,8 @@ public:
     uint64_t id;
     void* data;
 
+    void fs_track_read_buffer(void* buf, ssize_t size);
+    std::pair<char*, uint32_t> fs_track_to_buffer();
 
     uint8_t fs_track_getOpcode();
 
