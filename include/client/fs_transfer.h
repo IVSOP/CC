@@ -67,7 +67,7 @@ struct FS_Transfer_Packet {
 	}
 
 	uint32_t calculateChecksum() const;
-	constexpr bool checkErrors() const {
+	bool checkErrors() const {
 		return (calculateChecksum() == checksum);
 	}
 

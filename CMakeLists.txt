@@ -27,6 +27,7 @@ add_executable(Server
 add_executable(Node
 	src/client/main.cpp
 	src/client/fs_transfer.cpp
+	src/client/checksum.cpp
 	src/common/fs_track.cpp
 	src/common/TCP_socket.cpp
 	src/common/convert_types.cpp
