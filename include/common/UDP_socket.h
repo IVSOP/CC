@@ -27,6 +27,8 @@ struct NodeUDPSocket {
 	NodeUDPSocket(const std::string &ipv4);
     ~NodeUDPSocket();
 
+	int closeSocket();
+
     ssize_t receiveData(void *buf, size_t len, struct sockaddr_in * from) const;
     ssize_t sendData(const void *buf, size_t len, struct sockaddr_in * to);
 };

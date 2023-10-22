@@ -4,10 +4,10 @@
 
 #include "UDP_socket.h"
 
-int main () {
+
+void test_udp () {
 	NodeUDPSocket serverSocket = NodeUDPSocket("127.15.15.15");
 
-	// manhosidade para testar, saco o IP da socket de cima
 	NodeUDPSocket clientSocket = NodeUDPSocket("127.15.15.16");
 
 	if (fork() == 0) {
@@ -15,12 +15,23 @@ int main () {
 		sockaddr_in dest;
 		memcpy(&dest, &serverSocket.node_addr, sizeof(struct sockaddr_in));
 		clientSocket.sendData(buff, 50, &dest);
+		serverSocket.closeSocket();
+		clientSocket.closeSocket();
 		_exit(0);
 	} else {
 		char buff2[50];
 		sockaddr_in ola;
 		serverSocket.receiveData(buff2, 50, &ola);
 		printf("%s\n", buff2);
+		clientSocket.closeSocket();
+		serverSocket.closeSocket();
 	}
+
+	serverSocket.closeSocket();
+	clientSocket.closeSocket();
+
+}
+
+int main() {
 	return 0;
 }

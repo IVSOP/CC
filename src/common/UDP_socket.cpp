@@ -57,6 +57,10 @@ NodeUDPSocket::~NodeUDPSocket() {
 	close(node_fd);
 }
 
+int NodeUDPSocket::closeSocket() {
+	return close(node_fd);
+}
+
 
 ssize_t NodeUDPSocket::receiveData(void *buf, size_t len, struct sockaddr_in * from) const {
     socklen_t l = sizeof(struct sockaddr_in);
