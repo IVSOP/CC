@@ -18,25 +18,27 @@ include_directories(${OPENSSL_INCLUDE_DIR})
 # include_directories(include)
 
 add_executable(Server
-src/server/main.cpp
-src/common/fs_track.cpp
-src/common/TCP_socket.cpp
-src/common/convert_types.cpp
-src/common/fs_track_test.cpp)
+	src/server/main.cpp
+	src/common/fs_track.cpp
+	src/common/TCP_socket.cpp
+	src/common/convert_types.cpp
+	src/common/fs_track_test.cpp)
 
 add_executable(Node
-src/client/main.cpp
-src/common/fs_transfer.cpp
-src/common/fs_track.cpp
-src/common/TCP_socket.cpp
-src/common/convert_types.cpp
-src/common/UDP_socket.cpp)
+	src/client/main.cpp
+	src/client/fs_transfer.cpp
+	src/common/fs_track.cpp
+	src/common/TCP_socket.cpp
+	src/common/convert_types.cpp
+	src/common/UDP_socket.cpp)
 
 target_include_directories(Server
-	PUBLIC include/common)
+	PUBLIC include/common
+	PUBLIC include/server)
 
 target_include_directories(Node
-	PUBLIC include/common)
+	PUBLIC include/common
+	PUBLIC include/client)
 
 # para usarmos sha-1
 target_link_libraries(Server ${OPENSSL_LIBRARIES})

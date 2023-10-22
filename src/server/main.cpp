@@ -4,14 +4,13 @@
 #include <cstring>
 #include "TCP_socket.h"
 #include "fs_track.h"
-#include "fs_transfer.h"
 #include "fs_track_test.h"
 
 int main () {
-    printf("%lu\n", offsetof(FS_Transfer_Packet, data));
-    printf("%lu\n", sizeof(FS_Transfer_Packet));
-    printf("%lu\n", FS_TRANSFER_PACKET_SIZE);
-    printf("%lu\n", sizeof(FS_Data) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t));
+    // printf("%lu\n", offsetof(FS_Transfer_Packet, data));
+    // printf("%lu\n", sizeof(FS_Transfer_Packet));
+    // printf("%lu\n", FS_TRANSFER_PACKET_SIZE);
+    // printf("%lu\n", sizeof(FS_Data) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t));
     ServerTCPSocket server = ServerTCPSocket();
     server.socketListen();
 

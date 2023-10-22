@@ -66,6 +66,11 @@ struct FS_Transfer_Packet {
 		return static_cast<void *>(&data);
 	}
 
+	uint32_t calculateChecksum() const;
+	constexpr bool checkErrors() const {
+		return (calculateChecksum() == checksum);
+	}
+
 }; // __attribute__((packed));
 
 
@@ -104,8 +109,6 @@ Assim, nao tem de haver serialization nem nada porque ja ta tudo feito
 		
 		static_assert(sizeof(FS_Data) == sizeof(BlockData), "Error: union FS_Data has unexpected size");
 		static_assert(sizeof(FS_Data) == sizeof(BlockRequestData), "Error: union FS_Data has unexpected size");
-
-	#undef FS_TRANSFER_DEBUG // ?????
 
 	#endif
 
