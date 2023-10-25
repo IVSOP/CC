@@ -17,9 +17,14 @@ ServerTCPSocket::ServerTCPSocket()
 
 	int opt = 1;
 	// Forcefully attaching socket to the port 9090
-    if (setsockopt(serverfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+    if (setsockopt(serverfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
         print_error("Error setting socket options");
         exit(EXIT_FAILURE);
+    }
+
+    //Enable SO_REUSEPORT option
+    if (setsockopt(serverfd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) == -1) {
+        print_error("setsockopt SO_REUSEPORT");
     }
 
 	if (bind(serverfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {

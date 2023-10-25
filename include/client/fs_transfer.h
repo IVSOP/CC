@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <stddef.h>
+#include <unistd.h>
 
 #define BLOCK_SIZE 1024 // 1 kib de dados
 
@@ -18,48 +19,74 @@
 #define FS_TRANSFER_PACKET_SIZE sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t) + sizeof(FS_Data)
 
 // enviar dados de um bloco
-struct BlockData {
+struct BlockSendData {
 	uint32_t blockID;
 	char data[BLOCK_SIZE];
+
+	BlockSendData(uint32_t block, const char * data, ssize_t size); //char data[BLOCK_SIZE]);
+
+	constexpr uint32_t getId() const {
+		return this->blockID;
+	}
+
+	char * getData() {
+		return this->data;
+	}
+
+	void setId(uint32_t id);
+	void setData(const void * data, ssize_t size);
+
 };
 
 // pedir blocos
 struct BlockRequestData {
 	uint32_t blockID[MAX_BLOCKS];
+
+	BlockRequestData(const uint32_t * blockID, ssize_t size); // uint32_t blockID[MAX_BLOCKS]);
+
+	uint32_t * getData() {
+		return this->blockID;
+	}
+
+	void setData(const __uint32_t * ids, ssize_t size);
 };
 
 union FS_Data {
-	BlockData blockData;
+	BlockSendData blockData;
 	BlockRequestData blockRequestData;
+
+	FS_Data();
+	~FS_Data();
 };
 
 struct FS_Transfer_Packet {
-	FS_Transfer_Packet() = default;
-	~FS_Transfer_Packet() = default;
+	FS_Transfer_Packet();
+	FS_Transfer_Packet(uint8_t opc, uint64_t id, const BlockRequestData * data, uint32_t size);
+	FS_Transfer_Packet(uint8_t opc, uint64_t id, const BlockSendData * data, uint32_t size);
+	~FS_Transfer_Packet();
 
     uint32_t checksum;
     uint32_t opc_size;
     uint64_t id;
-	BlockData data;
+	FS_Data data; // devia ser BlockData?
 
+
+	// getters
     constexpr uint32_t getChecksum() const {
 		return checksum;
 	}
 
     constexpr uint8_t getOpcode() const {
-		uint8_t fstByte = static_cast<uint8_t> (this->opc_size);
-		fstByte = (fstByte & 0xC0) >> 6;
-		return fstByte;
+		return static_cast<uint8_t>((opc_size >> 30) & 0x03);
 	}
 
     constexpr uint32_t getSize() const {
 		uint32_t size = this->opc_size;
-		size = (size & 0x3F);
-		return size;
+		return (size & 0x3FFFFFFF);
 	}
 
     constexpr uint64_t getId() const {
-		return id;
+		return this->id;
 	}
 
 	constexpr void *getData() {
@@ -70,6 +97,17 @@ struct FS_Transfer_Packet {
 	bool checkErrors() const {
 		return (calculateChecksum() == checksum);
 	}
+	// end getters
+
+	// setters
+	void setOpcode(uint8_t value);
+	void setSize(uint32_t value);
+	void setId(uint64_t value);
+	void setData(const void * data, ssize_t size);
+	// end setters
+
+	//buffer related
+	void fs_transfer_read_buffer(const void * buf, ssize_t size);
 
 }; // __attribute__((packed));
 
@@ -105,9 +143,9 @@ Assim, nao tem de haver serialization nem nada porque ja ta tudo feito
 		static_assert(offsetof(FS_Transfer_Packet, data) == sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t), "Error: FS_Transfer has padding which is not accounted for");
 		// static_assert(sizeof(FS_Transfer_Packet) == sizeof(FS_Data) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t), "Error: BlockData has padding which is not accounted for");
 
-		static_assert(sizeof(BlockData) == sizeof(char) * 1024 + sizeof(uint32_t), "Error: BlockData has padding which is not accounted for");
+		static_assert(sizeof(BlockSendData) == sizeof(char) * 1024 + sizeof(uint32_t), "Error: BlockData has padding which is not accounted for");
 		
-		static_assert(sizeof(FS_Data) == sizeof(BlockData), "Error: union FS_Data has unexpected size");
+		static_assert(sizeof(FS_Data) == sizeof(BlockSendData), "Error: union FS_Data has unexpected size");
 		static_assert(sizeof(FS_Data) == sizeof(BlockRequestData), "Error: union FS_Data has unexpected size");
 
 	#endif
