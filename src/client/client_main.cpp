@@ -51,18 +51,19 @@ void test_fs_transfer_fields(){
 
 	uint32_t * testBlockIds = static_cast<BlockRequestData *> (packet->getData())->getData();
 
-	for(int i = 0; i<10; i++) printf("%d,", testBlockIds[i]);
+	for(int i = 0; i < 10; i++) printf("%d,", testBlockIds[i]);
 
 	printf("\n\n");
 	//teste com blockSendData agora e setters
 	//criar dados de bloco para enviar
 	char dataStr[] = "Hello World, teste, teste, peste, leste, ruski, putin";
-	int strLen = strlen(dataStr) + 1;
+	int strLen = sizeof(dataStr);
 	BlockSendData * data = new BlockSendData(502501,dataStr,strLen);
 	// alterar diferentes parâmetros no pacote anterior, inclusive dados (agora são dados de bloco pedido)
 	packet->setId(31020120);
 	packet->setOpcode(1);
-	packet->setData(data, strLen); // já atualiza checksum e size
+	packet->setData(data, strLen + sizeof(uint32_t)); // será tamanho do array, mais id associado ao BlockSendData
+	// setData já atualiza checksum e size
 
 	//testar campos
 	printf("packet opcode: %d, size: %d, id: %llu, checksum: %d, data: ", packet->getOpcode(), packet->getSize(), packet->getId(), packet->getChecksum());
@@ -79,7 +80,7 @@ void test_fs_transfer_fields(){
 //testar receber do outro lado de conexão UDP
 void test_fs_transfer_sendData() {
 	// udp continua a dar erro a bind de socket -> não cheguei a fazer
-	char * buf;
+	char * buf = nullptr;
 	FS_Transfer_Packet * packet = new FS_Transfer_Packet();
 	packet->fs_transfer_read_buffer(buf,-1);
 

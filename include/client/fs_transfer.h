@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <stddef.h>
 #include <unistd.h>
+#include <cstring>
 
 #define BLOCK_SIZE 1024 // 1 kib de dados
 

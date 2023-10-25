@@ -30,7 +30,7 @@ FS_Data::~FS_Data() {}
 // reutilizar um fs_transfer_packet prévio
 void FS_Transfer_Packet::fs_transfer_read_buffer(const void * buffer, ssize_t size) {
 	if (buffer != nullptr) {
-		memcpy(this,buffer,size); // assumir FS_TRANSFER_PACKET_SIZE?
+		memcpy(static_cast <void *> (this),buffer,size); // assumir FS_TRANSFER_PACKET_SIZE?
 	}
 	else {
 		perror("Buffer is null");
@@ -54,7 +54,7 @@ void FS_Transfer_Packet::setId(uint64_t id) {
 
 //já atualiza size e checksum
 void FS_Transfer_Packet::setData(const void * data, ssize_t size) {
-	memcpy(&this->data,data,size);
+	memcpy(static_cast <void *> (&this->data),data,size);
 	this->setSize(size);
 	this->checksum = FS_Transfer_Packet::calculateChecksum();
 };
@@ -73,7 +73,7 @@ void BlockSendData::setId(uint32_t id) {
 void BlockSendData::setData(const void * data, ssize_t size) {
 	if ((unsigned long) size > BLOCK_SIZE) 
 		perror("size too big for array");
-	memcpy(&this->data,data,size); // devia ser sempre BLOCK_SIZE? // faz deep copy aqui, e volta a fazer no setData??
+	memcpy(this->data,data,size); // devia ser sempre BLOCK_SIZE? // faz deep copy aqui, e volta a fazer no setData??
 }
 
 //blockRequestData
@@ -84,7 +84,7 @@ BlockRequestData::BlockRequestData(const uint32_t * ids, ssize_t size) {
 void BlockRequestData::setData(const __uint32_t * ids, ssize_t size) {
 	if ((unsigned long) size > MAX_BLOCKS)
 		perror("size too big for array");
-	memcpy(&this->blockID,ids,size); // devia ser sempre MAX_BLOCKS?
+	memcpy(this->blockID,ids,size); // devia ser sempre MAX_BLOCKS?
 }
 
 
