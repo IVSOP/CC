@@ -4,66 +4,17 @@
 #include "fs_track.h"
 #include "fs_track_test.h"
 
-/* Reg Data */
-
-void set_RegData(FS_Track* data){
-    std::vector<FS_Track::RegData> dados = std::vector<FS_Track::RegData>();
-
-    char filename[FILENAME_SIZE];
-
-    for(int i = 0; i < 10; i++){
-        snprintf(filename, FILENAME_SIZE, "This is file %d.", i);
-        dados.emplace_back(filename);
-    }
-
-    data->Reg_set_data(dados);
-}
-
-void read_RegData(FS_Track* data){
-    for(const auto& file : data->Reg_get_data()){
-        std::cout << "File with name: " << file.filename << std::endl;
-        std::cout << std::endl;
-    }
-}
-
-void testRegData(){
-    testCommunication(set_RegData, read_RegData);
-}
-
-/* ID Assignment */
-
-void set_IDAssignment(FS_Track* data){
-    std::vector<FS_Track::IDAssignmentData> dados = std::vector<FS_Track::IDAssignmentData>();
-
-    char filename[FILENAME_SIZE];
-
-    for(int i = 0; i < 5; i++){
-        snprintf(filename, FILENAME_SIZE, "This is file %d.", i);
-        dados.emplace_back(filename, i);
-    }
-
-    data->IDAssignment_set_data(dados);
-}
-
-void read_IDAssignment(FS_Track* data){
-    for(const auto& file : data->IDAssignment_get_data()){
-        std::cout << "File with id: " << file.file_id << std::endl;
-        std::cout << file.filename << std::endl;
-        std::cout << std::endl;
-    }
-}
-
-void testIDAssignment(){
-    testCommunication(set_IDAssignment, read_IDAssignment);
-}
-
-/* Update File Blocks */
+/* Reg Update data */
 
 void set_UpdateFileBlocks(FS_Track* data){
     std::vector<FS_Track::UpdateFileBlocksData> dados = std::vector<FS_Track::UpdateFileBlocksData>();
 
     for(int i = 0; i < 5; i++){
-        dados.emplace_back(i, (2*i)+1);
+        std::vector<uint32_t> blocks = std::vector<uint32_t>();
+
+        for(int j = 1; j <= (2*i)+1; j++) blocks.emplace_back(j);
+
+        dados.emplace_back(i, blocks);
     }
 
     data->UpdateFileBlocks_set_data(dados);
@@ -71,7 +22,13 @@ void set_UpdateFileBlocks(FS_Track* data){
 
 void read_UpdateFileBlocks(FS_Track* data){
     for(const auto& file : data->UpdateFileBlocks_get_data()){
-        std::cout << file.file_id << ": " << file.block_number << std::endl;
+        std::cout << "File: " << file.file_id << std::endl;
+
+        for(const auto& block : file.block_numbers){
+            std::cout << block << std::endl;
+        }
+
+        std::cout << "-----------------------------------" << std::endl;
     }
 }
 

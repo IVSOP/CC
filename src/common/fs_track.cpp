@@ -17,34 +17,12 @@ FS_Track::~FS_Track(){
     delete[] (char*) this->data;
 }
 
-FS_Track::RegData::RegData(char *filename) {
-    int len = strlen(filename);
-
-    memcpy(this->filename, filename, len);
-
-    this->filename[len] = '\0';
-}
-
-FS_Track::RegData::~RegData() = default;
-
-FS_Track::IDAssignmentData::IDAssignmentData(char *filename, uint64_t file_id) {
-    int len = strlen(filename);
-
-    memcpy(this->filename, filename, len);
-
-    this->filename[len] = '\0';
-
+FS_Track::RegUpdateData::UpdateFileBlocksData(uint64_t file_id, std::vector<uint32_t> block_numbers) {
     this->file_id = file_id;
+    this->block_number = std::vector<uint32_t>(block_numbers);
 }
 
-FS_Track::IDAssignmentData::~IDAssignmentData() = default;
-
-FS_Track::UpdateFileBlocksData::UpdateFileBlocksData(uint64_t file_id, uint32_t block_number) {
-    this->file_id = file_id;
-    this->block_number = block_number;
-}
-
-FS_Track::UpdateFileBlocksData::~UpdateFileBlocksData() = default;
+FS_Track::RegUpdateData::~UpdateFileBlocksData() = default;
 
 FS_Track::PostFileBlocksData::PostFileBlocksData(struct in_addr ip, std::vector<uint32_t> block_numbers) {
     this->ip = in_addr();
@@ -156,161 +134,13 @@ uint64_t FS_Track::fs_track_getId() {
     return this->id;
 }
 
-
-
-/**
- * Sets FS_Track data with desired RegData structs
- * @param data
- */
-void FS_Track::Reg_set_data(const std::vector<RegData> &data) {
-    // Serialized bytes
-    auto *serializedData = new std::vector<uint8_t>();
-
-    uint32_t totalBytes = 4;
-
-    push_uint32_into_vector_uint8(serializedData, data.size());
-
-    // For each struct
-    for (const auto &fileData: data) {
-
-        // Filename len
-        uint32_t len = (uint32_t) strnlen(fileData.filename, FILENAME_SIZE);
-        push_uint32_into_vector_uint8(serializedData, len);
-
-        // Serialize filename byte by byte
-        for (uint32_t i = 0; i < len; i++) {
-            serializedData->emplace_back(fileData.filename[i]);
-        }
-
-        // Update data's total bytes
-        totalBytes += (4 + len);
-    }
-
-    // Update FS_Track
-    FS_Track::set_data(serializedData->data(), totalBytes);
-    delete serializedData;
-}
-
-/**
- * Deserialize FS_Track data into RegData structs
- * @return
- */
-std::vector<FS_Track::RegData> FS_Track::Reg_get_data() {
-    // Serialized data
-    char* serializedData = (char*) this->data;
-
-    uint32_t i = 0;
-    uint32_t len = vptr_to_uint32(serializedData, &i);
-
-    if(len == 0) {
-        perror("No data received");
-
-        return {};
-    }
-
-    std::vector<FS_Track::RegData> deserializedData = std::vector<FS_Track::RegData>();
-
-    uint32_t filename_len;
-    char filename[FILENAME_SIZE];
-
-    // For each byte of data
-    for (uint32_t k = 0; k < len; k++) {
-        // Get filename len
-        filename_len = vptr_to_uint32(serializedData, &i);
-
-        // Get file name
-        for (uint32_t j = 0; j < filename_len; j++) filename[j] = (char) serializedData[i++];
-
-        // Store recovered data
-        deserializedData.emplace_back(filename);
-    }
-
-    return deserializedData;
-}
-
-/**
- * Sets FS_Track data with desired IDAssignmentData structs
- * @param data
- */
-void FS_Track::IDAssignment_set_data(const std::vector<IDAssignmentData> &data) {
-    // Serialized bytes
-    auto *serializedData = new std::vector<uint8_t>();
-
-    uint32_t totalBytes = 4;
-
-    push_uint32_into_vector_uint8(serializedData, data.size());
-
-    // For each struct
-    for (const auto &fileData: data) {
-
-        push_uint64_into_vector_uint8(serializedData, fileData.file_id);
-
-        // Filename len
-        uint32_t len = (uint32_t) strnlen(fileData.filename, FILENAME_SIZE);
-        push_uint32_into_vector_uint8(serializedData, len);
-
-        // Serialize filename byte by byte
-        for (uint32_t i = 0; i < len; i++) {
-            serializedData->emplace_back(fileData.filename[i]);
-        }
-
-        // Update data's total bytes
-        totalBytes += (8 + 4 + len);
-    }
-
-    // Update FS_Track
-    this->set_data(serializedData->data(), totalBytes);
-    delete serializedData;
-}
-
-/**
- * Deserialize FS_Track data into IDAssignment_get_data structs
- * @return
- */
-std::vector<FS_Track::IDAssignmentData> FS_Track::IDAssignment_get_data() {
-    // Serialized data
-    char* serializedData = (char*) this->data;
-
-    uint32_t i = 0;
-    uint32_t len = vptr_to_uint32(serializedData, &i);
-
-    if(len == 0) {
-        perror("No data received");
-
-        return {};
-    }
-
-    std::vector<FS_Track::IDAssignmentData> deserializedData = std::vector<FS_Track::IDAssignmentData>();
-
-    uint64_t fileId;
-    uint32_t filename_len;
-    char filename[FILENAME_SIZE];
-
-    // For each byte of data
-    for (uint32_t k = 0; k < len; k++) {
-        // Get file id
-        fileId = vptr_to_uint64(serializedData, &i);
-
-        // Get filename len
-        filename_len = vptr_to_uint32(serializedData, &i);
-
-        // Get file name
-        for (uint32_t j = 0; j < filename_len; j++) filename[j] = (char) serializedData[i++];
-
-        // Store recovered data
-        deserializedData.emplace_back(filename, fileId);
-    }
-
-    return deserializedData;
-}
-
 // TODO No update não podiamos usar a mesma estrutura do post?
 
 /**
  * Sets FS_Track data with desired UpdateFileBlocksData structs
  * @param data
  */
-void FS_Track::UpdateFileBlocks_set_data(const std::vector<UpdateFileBlocksData>& data) {
+void FS_Track::RegUpdateData_set_data(const std::vector<UpdateFileBlocksData>& data) {
     // Serialized bytes
     auto *serializedData = new std::vector<uint8_t>();
 
@@ -322,10 +152,16 @@ void FS_Track::UpdateFileBlocks_set_data(const std::vector<UpdateFileBlocksData>
         // Serialized file Id
         push_uint64_into_vector_uint8(serializedData, fileBlock.file_id);
 
-        // Serialize block number
-        push_uint32_into_vector_uint8(serializedData, fileBlock.block_number);
+        uint32_t blocks_len = fileBlock.block_numbers.size();
+        // Serialize block_numbers length
+        push_uint32_into_vector_uint8(serializedData, block_numbers);
 
-        totalBytes += 12;
+        for (const auto& block : fileBlock.block_numbers){
+            // Serialize block number
+            push_uint32_into_vector_uint8(serializedData, block);
+        }
+
+        totalBytes += (12 + 4 * blocks_len);
     }
 
     this->set_data(serializedData->data(), totalBytes);
@@ -336,7 +172,7 @@ void FS_Track::UpdateFileBlocks_set_data(const std::vector<UpdateFileBlocksData>
  * Deserialize FS_Track data into UpdateFileBlocksData structs
  * @return
  */
-std::vector<FS_Track::UpdateFileBlocksData> FS_Track::UpdateFileBlocks_get_data() {
+std::vector<FS_Track::UpdateFileBlocksData> FS_Track::RegUpdateData_get_data() {
     // Serialized data
     char* serializedData = (char*) this->data;
 
@@ -359,9 +195,16 @@ std::vector<FS_Track::UpdateFileBlocksData> FS_Track::UpdateFileBlocks_get_data(
         file_id = vptr_to_uint64(serializedData, &i);
 
         // Deserialize block number
-        block_number = vptr_to_uint32(serializedData, &i);
+        blocks_len = vptr_to_uint32(serializedData, &i);
 
-        deserializedData.emplace_back(file_id, block_number);
+        // TODO Ivan, otimiza esta merda !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        std::vector<uint32_t> block_numbers = std::vector<uint32_t>();
+
+        for(uint64_t k = 0; k < blocks_len; k++){
+            block_numbers.emplace_back(vptr_to_uint32(serializedData, &i));
+        }
+
+        deserializedData.emplace_back(file_id, block_numbers);
     }
 
     return deserializedData;

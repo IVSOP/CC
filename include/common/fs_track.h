@@ -19,27 +19,12 @@ public:
     FS_Track(uint8_t, bool, uint64_t);
     ~FS_Track();
 
-    struct RegData{
-        char filename[FILENAME_SIZE];
-
-        RegData(char*);
-        ~RegData();
-    };
-
-    struct IDAssignmentData{
-        char filename[FILENAME_SIZE];
+    struct RegUpdateData{
         uint64_t file_id;
+        std::vector<uint32_t> block_numbers;
 
-        IDAssignmentData(char*, uint64_t);
-        ~IDAssignmentData();
-    };
-
-    struct UpdateFileBlocksData{
-        uint64_t file_id;
-        uint32_t block_number;
-
-        UpdateFileBlocksData(uint64_t, uint32_t);
-        ~UpdateFileBlocksData();
+        RegUpdateData(uint64_t, std::vector<uint32_t>);
+        ~RegUpdateData();
     };
 
     struct PostFileBlocksData{
