@@ -2,9 +2,11 @@
 // Created by kard on 19-10-2023.
 //
 
+#include "TCP_socket.h"
 #include "UDP_socket.h"
 #include "fs_transfer.h"
 #include <checksum.h>
+#include "client.h"
 
 
 void test_udp () {
@@ -87,6 +89,7 @@ void test_fs_transfer_sendData() {
 }
 
 int main() {
-	test_fs_transfer_fields();	
+	Client client;
+
 	return 0;
 }

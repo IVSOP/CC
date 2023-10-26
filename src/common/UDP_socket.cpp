@@ -70,6 +70,6 @@ ssize_t NodeUDPSocket::receiveData(void *buf, size_t len, struct sockaddr_in * f
 //If you're sending an initial request, or sending a datagram in response to some other event (like user input, or a timeout) then you should not set the MSG_CONFIRM flag.
 ssize_t NodeUDPSocket::sendData(const void *buf, size_t len, struct sockaddr_in * to) {
     socklen_t l = sizeof(struct sockaddr_in);
-    return sendto (node_fd,buf,len, 0, (const struct sockaddr *) to, l);
+    return sendto (node_fd, buf,len, 0, (const struct sockaddr *) to, l);
 };
 

@@ -1,5 +1,5 @@
-#ifndef TCP_SOCKET_H
-#define TCP_SOCKET_H
+#ifndef UDP_SOCKET_H
+#define UDP_SOCKET_H
 
 #include <sys/socket.h>
 #include <netinet/in.h>
