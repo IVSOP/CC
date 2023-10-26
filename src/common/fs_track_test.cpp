@@ -7,7 +7,7 @@
 /* Reg Update data */
 
 void set_UpdateFileBlocks(FS_Track* data){
-    std::vector<FS_Track::UpdateFileBlocksData> dados = std::vector<FS_Track::UpdateFileBlocksData>();
+    std::vector<FS_Track::RegUpdateData> dados = std::vector<FS_Track::RegUpdateData>();
 
     for(int i = 0; i < 5; i++){
         std::vector<uint32_t> blocks = std::vector<uint32_t>();
@@ -17,11 +17,11 @@ void set_UpdateFileBlocks(FS_Track* data){
         dados.emplace_back(i, blocks);
     }
 
-    data->UpdateFileBlocks_set_data(dados);
+    data->RegUpdateData_set_data(dados);
 }
 
 void read_UpdateFileBlocks(FS_Track* data){
-    for(const auto& file : data->UpdateFileBlocks_get_data()){
+    for(const auto& file : data->RegUpdateData_get_data()){
         std::cout << "File: " << file.file_id << std::endl;
 
         for(const auto& block : file.block_numbers){

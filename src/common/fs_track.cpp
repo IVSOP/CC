@@ -17,12 +17,12 @@ FS_Track::~FS_Track(){
     delete[] (char*) this->data;
 }
 
-FS_Track::RegUpdateData::UpdateFileBlocksData(uint64_t file_id, std::vector<uint32_t> block_numbers) {
+FS_Track::RegUpdateData::RegUpdateData(uint64_t file_id, std::vector<uint32_t> block_numbers) {
     this->file_id = file_id;
-    this->block_number = std::vector<uint32_t>(block_numbers);
+    this->block_numbers = std::vector<uint32_t>(block_numbers);
 }
 
-FS_Track::RegUpdateData::~UpdateFileBlocksData() = default;
+FS_Track::RegUpdateData::~RegUpdateData() = default;
 
 FS_Track::PostFileBlocksData::PostFileBlocksData(struct in_addr ip, std::vector<uint32_t> block_numbers) {
     this->ip = in_addr();
@@ -140,7 +140,7 @@ uint64_t FS_Track::fs_track_getId() {
  * Sets FS_Track data with desired UpdateFileBlocksData structs
  * @param data
  */
-void FS_Track::RegUpdateData_set_data(const std::vector<UpdateFileBlocksData>& data) {
+void FS_Track::RegUpdateData_set_data(const std::vector<RegUpdateData>& data) {
     // Serialized bytes
     auto *serializedData = new std::vector<uint8_t>();
 
@@ -154,7 +154,7 @@ void FS_Track::RegUpdateData_set_data(const std::vector<UpdateFileBlocksData>& d
 
         uint32_t blocks_len = fileBlock.block_numbers.size();
         // Serialize block_numbers length
-        push_uint32_into_vector_uint8(serializedData, block_numbers);
+        push_uint32_into_vector_uint8(serializedData, blocks_len);
 
         for (const auto& block : fileBlock.block_numbers){
             // Serialize block number
@@ -172,7 +172,7 @@ void FS_Track::RegUpdateData_set_data(const std::vector<UpdateFileBlocksData>& d
  * Deserialize FS_Track data into UpdateFileBlocksData structs
  * @return
  */
-std::vector<FS_Track::UpdateFileBlocksData> FS_Track::RegUpdateData_get_data() {
+std::vector<FS_Track::RegUpdateData> FS_Track::RegUpdateData_get_data() {
     // Serialized data
     char* serializedData = (char*) this->data;
 
@@ -185,7 +185,7 @@ std::vector<FS_Track::UpdateFileBlocksData> FS_Track::RegUpdateData_get_data() {
         return {};
     }
 
-    std::vector<FS_Track::UpdateFileBlocksData> deserializedData = std::vector<FS_Track::UpdateFileBlocksData>();
+    std::vector<FS_Track::RegUpdateData> deserializedData = std::vector<FS_Track::RegUpdateData>();
 
     uint64_t file_id;
     uint32_t block_number;
@@ -195,7 +195,7 @@ std::vector<FS_Track::UpdateFileBlocksData> FS_Track::RegUpdateData_get_data() {
         file_id = vptr_to_uint64(serializedData, &i);
 
         // Deserialize block number
-        blocks_len = vptr_to_uint32(serializedData, &i);
+        uint32_t blocks_len = vptr_to_uint32(serializedData, &i);
 
         // TODO Ivan, otimiza esta merda !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         std::vector<uint32_t> block_numbers = std::vector<uint32_t>();

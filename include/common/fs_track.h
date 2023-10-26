@@ -58,14 +58,8 @@ public:
 
     uint64_t fs_track_getId();
 
-    void Reg_set_data(const std::vector<RegData>& files_name);
-    std::vector<FS_Track::RegData> Reg_get_data();
-
-    void IDAssignment_set_data(const std::vector<IDAssignmentData>& data);
-    std::vector<IDAssignmentData> IDAssignment_get_data();
-
-    void UpdateFileBlocks_set_data(const std::vector<UpdateFileBlocksData>& data);
-    std::vector<UpdateFileBlocksData> UpdateFileBlocks_get_data();
+    void RegUpdateData_set_data(const std::vector<RegUpdateData>& data);
+    std::vector<RegUpdateData> RegUpdateData_get_data();
 
     void PostFileBlocks_set_data(const std::vector<PostFileBlocksData>& data);
     std::vector<PostFileBlocksData> PostFileBlocks_get_data();
