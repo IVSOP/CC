@@ -9,7 +9,7 @@
 void set_RegUpdateData(FS_Track* data){
     std::vector<FS_Track::RegUpdateData> dados = std::vector<FS_Track::RegUpdateData>();
 
-    for(int i = 64; i < 65; i++){
+    for(int i = 0; i < 65; i++){
         std::vector<uint32_t> blocks = std::vector<uint32_t>();
 
         for(int j = 1; j <= (2*i)+1; j++) blocks.emplace_back(j);
@@ -108,18 +108,34 @@ void testCommunication (void set(FS_Track*), void get(FS_Track*)) {
 
         _exit(0);
     } else { // server
-        char buf[1500];
+        char buffer[1500];
 
         FS_Track* data = new FS_Track();
 
         ServerTCPSocket::SocketInfo new_connection = server.acceptClient();
 
-        ssize_t bytes = new_connection.receiveData(buf, 1500);
+        uint32_t bytes, remainBytes;
 
-        data->fs_track_read_buffer(buf, bytes);
+        bytes = new_connection.receiveData(buffer, 4);
 
-        printf("%d, %d, %u, %lu\n", data->fs_track_getOpcode(), data->fs_track_getOpt() ? 1 : 0, data->fs_track_getSize(), data->fs_track_getId());
+        if(bytes < 4) return;
 
+        data->fs_track_header_read_buffer(buffer, bytes);
+
+        if(data->fs_track_getOpt() == 1) {
+            bytes = new_connection.receiveData(buffer, 8);
+            data->fs_track_set_hash(buffer, bytes);
+        }
+
+        remainBytes = data->fs_track_getSize();
+
+        while(remainBytes > 0){
+            bytes = new_connection.receiveData(buffer, std::min((uint32_t) 1500, remainBytes));
+
+            data->set_data(buffer, bytes);
+
+            remainBytes -= bytes;
+        }
         get(data);
     }
 }

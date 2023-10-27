@@ -6,10 +6,10 @@
 #include "fs_track.h"
 #include "fs_track_test.h"
 
-#define BUFFER_SIZE 1500
+#define BUFFER_SIZE (uint32_t) 1500
 
 void read_data(FS_Track* data){
-    uint8_t OPCode = data->fs_track_getOpt();
+    uint8_t OPCode = data->fs_track_getOpcode();
 
     if(OPCode == 0 || OPCode == 1) read_RegUpdateData(data);
 
@@ -29,26 +29,41 @@ int main () {
     ServerTCPSocket::SocketInfo new_connection;
 
     uint8_t* buffer = new uint8_t[BUFFER_SIZE];
-    uint32_t bytes;
-    bool first;
+    uint32_t bytes, remainBytes;
     FS_Track* data;
 
     while(true){
-        data = new FS_Track();
-        first = true;
 
         new_connection = server.acceptClient();
 
+        while(true) {
+            data = new FS_Track();
 
-        while((bytes = new_connection.receiveData(buffer, BUFFER_SIZE)) > 0){
-            if(first) {
-                data->fs_track_read_buffer(buffer, bytes);
-                first = false;
+            bytes = new_connection.receiveData(buffer, 4);
+
+            if (bytes < 4) break;
+
+            data->fs_track_header_read_buffer(buffer, bytes);
+
+            if (data->fs_track_getOpt() == 1) {
+                bytes = new_connection.receiveData(buffer, 8);
+                data->fs_track_set_hash(buffer, bytes);
             }
-            else data->set_data(buffer, bytes);
-        }
 
-        read_data(data);
+            remainBytes = data->fs_track_getSize();
+
+            while (remainBytes > 0) {
+                bytes = new_connection.receiveData(buffer, std::min(BUFFER_SIZE, remainBytes));
+
+                data->set_data(buffer, bytes);
+
+                remainBytes -= bytes;
+            }
+
+            read_data(data);
+
+            delete data;
+        }
     }
 
     delete[] (char*) buffer;

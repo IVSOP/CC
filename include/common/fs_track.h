@@ -47,7 +47,9 @@ public:
     uint64_t hash;
     void* data;
 
-    void fs_track_read_buffer(void* buf, ssize_t size);
+    void fs_track_header_read_buffer(void* buf, ssize_t size);
+    void fs_track_set_hash(void* buf, ssize_t size);
+
     std::pair<uint8_t*, uint32_t> fs_track_to_buffer();
 
     void set_data(void*, uint32_t);

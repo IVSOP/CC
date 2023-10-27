@@ -122,12 +122,15 @@ int main() {
 
     /*
     ClientTCPSocket client = ClientTCPSocket("0.0.0.0");
+    FS_Track* data = nullptr;
+    std::pair<uint8_t *, uint32_t> buf;
 
-    auto* data = new FS_Track(0, false, 82);
+
+    data = new FS_Track(0, false, 82);
 
     set_RegUpdateData(data);
 
-    std::pair<uint8_t *, uint32_t> buf = data->FS_Track::fs_track_to_buffer();
+    buf = data->FS_Track::fs_track_to_buffer();
 
     std::cout << buf.second << std::endl;
 
@@ -141,15 +144,20 @@ int main() {
 
     buf = data->FS_Track::fs_track_to_buffer();
 
+    std::cout << buf.second << std::endl;
+
     client.sendData(buf.first, buf.second);
 
     delete data;
+
 
     data = new FS_Track(3, true, 150);
 
     set_PostFileBlocks(data);
 
     buf = data->FS_Track::fs_track_to_buffer();
+
+    std::cout << buf.second << std::endl;
 
     client.sendData(buf.first, buf.second);
 
@@ -160,6 +168,8 @@ int main() {
     set_ErrorMessage(data);
 
     buf = data->FS_Track::fs_track_to_buffer();
+
+    std::cout << buf.second << std::endl;
 
     client.sendData(buf.first, buf.second);
 

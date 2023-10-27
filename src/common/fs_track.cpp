@@ -77,7 +77,7 @@ void FS_Track::set_data(void* buf, uint32_t size){
     this->dataSize = newSize;
 }
 
-void FS_Track::fs_track_read_buffer(void* buf, ssize_t size){
+void FS_Track::fs_track_header_read_buffer(void* buf, ssize_t size){
     if(size < 4){
         print_error("No data to read.")
 
@@ -86,23 +86,21 @@ void FS_Track::fs_track_read_buffer(void* buf, ssize_t size){
 
     char* buffer = (char*) buf;
 
-    uint32_t curPos = 0;
-
     memcpy(&(this->opcode_opts), buffer, 1);
-    ++curPos;
 
     memcpy(this->size, &buffer[1], 3);
-    curPos += 3;
+}
 
-    bool hasID = this->fs_track_getOpt() == 1;
+void FS_Track::fs_track_set_hash(void* buf, ssize_t size){
+    if(size < 8){
+        print_error("No data to read.")
 
-    if(hasID){
-        memcpy(&(this->hash), &buffer[curPos], 8);
-        curPos += 8;
+        return;
     }
 
-    uint32_t dataSize = size - curPos;
-    if(dataSize > 0) this->set_data(&buffer[curPos], dataSize);
+    char* buffer = (char*) buf;
+
+    memcpy(&(this->hash), buffer, 8);
 }
 
 std::pair<uint8_t *, uint32_t> FS_Track::fs_track_to_buffer(){
