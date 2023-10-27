@@ -22,7 +22,8 @@ add_executable(Server
 	src/common/fs_track.cpp
 	src/common/TCP_socket.cpp
 	src/common/convert_types.cpp
-	src/common/fs_track_test.cpp)
+	src/common/fs_track_test.cpp
+	src/common/cmdline.cpp)
 
 add_executable(Node
 	src/client/client.cpp
@@ -33,7 +34,8 @@ add_executable(Node
 	src/common/TCP_socket.cpp
 	src/common/convert_types.cpp
 	src/common/UDP_socket.cpp
-	src/common/fs_track_test.cpp)
+	src/common/fs_track_test.cpp
+	src/common/cmdline.cpp)
 
 target_include_directories(Server
 	PUBLIC include/common
@@ -42,6 +44,7 @@ target_include_directories(Server
 target_include_directories(Node
 	PUBLIC include/common
 	PUBLIC include/client)
+
 
 # para usarmos sha-1
 target_link_libraries(Server ${OPENSSL_LIBRARIES})
