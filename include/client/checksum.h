@@ -10,15 +10,21 @@
 
 // SHA-1 implementation
 
-uint32_t sha1(const void *buf, size_t len);
+uint32_t sha1_32(const void *buf, size_t len);
 
 // SHA-2 256 implementation
 
-uint32_t sha2(const void *buf, size_t len);
+uint32_t sha2_32(const void *buf, size_t len);
 
 // SHA-3 256 implementation
 
-uint32_t sha3(const void *buf, size_t len);
+uint32_t sha3_32(const void *buf, size_t len);
+
+
+uint64_t sha1_64(const void *buf, size_t len);
+uint64_t sha2_64(const void *buf, size_t len);
+uint64_t sha3_64(const void *buf, size_t len);
+
 
 
 #endif

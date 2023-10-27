@@ -71,8 +71,9 @@ void BlockSendData::setId(uint32_t id) {
 }
 
 void BlockSendData::setData(const void * data, ssize_t size) {
-	if ((unsigned long) size > BLOCK_SIZE)
-    print_error("size too big for array");
+	if ((unsigned long) size > BLOCK_SIZE) {
+    	print_error("size too big for array");
+	}
 	memcpy(this->data,data,size); // devia ser sempre BLOCK_SIZE? // faz deep copy aqui, e volta a fazer no setData??
 }
 
@@ -82,8 +83,9 @@ BlockRequestData::BlockRequestData(const uint32_t * ids, ssize_t size) {
 }
 
 void BlockRequestData::setData(const __uint32_t * ids, ssize_t size) {
-	if ((unsigned long) size > MAX_BLOCKS)
-    print_error("size too big for array");
+	if ((unsigned long) size > MAX_BLOCKS) {
+    	print_error("size too big for array");
+	}
 	memcpy(this->blockID,ids,size); // devia ser sempre MAX_BLOCKS?
 }
 

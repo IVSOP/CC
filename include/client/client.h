@@ -22,11 +22,7 @@ struct Client {
 
 
 	ClientTCPSocket socketToServer;
-	// 1 socket para receber e outra para enviar
-	// isto e porque os receives bloqueiam
-	// outra solucao seria 2 threads na mesma socket, mas e mais confuso
-	NodeUDPSocket inputSocket;
-	NodeUDPSocket outputSocket;
+	NodeUDPSocket udpSocket; // usamos apenas 1 socket para tudo
 	std::thread thread;
 };
 

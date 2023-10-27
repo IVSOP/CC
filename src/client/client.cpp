@@ -3,7 +3,7 @@
 #define SERVER_IP "0.0.0.0"
 
 Client::Client()
-: socketToServer(SERVER_IP), inputSocket(), outputSocket("127.0.0.1"), thread() // por default sockets aceitam tudo. localhost na de output por seguranca
+: socketToServer(SERVER_IP), udpSocket(), thread() // por default sockets aceitam tudo
 {
 	// register
 	initUploadLoop();
@@ -11,8 +11,7 @@ Client::Client()
 }
 
 Client::~Client() {
-	inputSocket.closeSocket();
-	outputSocket.closeSocket();
+	udpSocket.closeSocket();
 }
 
 void Client::uploadLoop() {

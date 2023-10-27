@@ -106,7 +106,7 @@ void consume(BoundedBuffer<int, 10> &buff) {
 }
 
 int main() {
-	//Client client;
+	Client client;
 
 	BoundedBuffer<int, 10> buff;
 
