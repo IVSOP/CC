@@ -125,7 +125,6 @@ int main() {
     FS_Track* data = nullptr;
     std::pair<uint8_t *, uint32_t> buf;
 
-
     data = new FS_Track(0, false, 82);
 
     set_RegUpdateData(data);
@@ -149,7 +148,6 @@ int main() {
     client.sendData(buf.first, buf.second);
 
     delete data;
-
 
     data = new FS_Track(3, true, 150);
 

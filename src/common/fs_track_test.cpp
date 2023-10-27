@@ -9,7 +9,7 @@
 void set_RegUpdateData(FS_Track* data){
     std::vector<FS_Track::RegUpdateData> dados = std::vector<FS_Track::RegUpdateData>();
 
-    for(int i = 0; i < 65; i++){
+    for(int i = 0; i < 5; i++){
         std::vector<uint32_t> blocks = std::vector<uint32_t>();
 
         for(int j = 1; j <= (2*i)+1; j++) blocks.emplace_back(j);

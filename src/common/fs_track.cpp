@@ -216,6 +216,10 @@ std::vector<FS_Track::RegUpdateData> FS_Track::RegUpdateData_get_data() {
         // Deserialize file hash
         file_id = vptr_to_uint64(serializedData, &i);
 
+        if(j == 4580){
+            printf("Ola\n");
+        }
+
         // Deserialize block number
         uint32_t blocks_len = vptr_to_uint32(serializedData, &i);
 
