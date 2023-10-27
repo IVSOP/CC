@@ -2,9 +2,11 @@
 // Created by kard on 19-10-2023.
 //
 
-#include "TCP_socket.h"
 #include "UDP_socket.h"
+#include "TCP_socket.h"
 #include "fs_transfer.h"
+#include "fs_track.h"
+#include "fs_track_test.h"
 #include <checksum.h>
 #include "client.h"
 
@@ -49,7 +51,7 @@ void test_fs_transfer_fields(){
 	FS_Transfer_Packet * packet = new FS_Transfer_Packet(2, 524, blocks, 10 * sizeof(uint32_t));
 
 	//testar campos do pacote
-	printf("packet opcode: %d, size: %d, id: %llu, checksum: %d, data: ", packet->getOpcode(), packet->getSize(), packet->getId(), packet->getChecksum());
+	printf("packet opcode: %d, size: %d, hash: %lu, checksum: %d, data: ", packet->getOpcode(), packet->getSize(), packet->getId(), packet->getChecksum());
 
 	uint32_t * testBlockIds = static_cast<BlockRequestData *> (packet->getData())->getData();
 
@@ -64,11 +66,11 @@ void test_fs_transfer_fields(){
 	// alterar diferentes parâmetros no pacote anterior, inclusive dados (agora são dados de bloco pedido)
 	packet->setId(31020120);
 	packet->setOpcode(1);
-	packet->setData(data, strLen + sizeof(uint32_t)); // será tamanho do array, mais id associado ao BlockSendData
+	packet->setData(data, strLen + sizeof(uint32_t)); // será tamanho do array, mais hash associado ao BlockSendData
 	// setData já atualiza checksum e size
 
 	//testar campos
-	printf("packet opcode: %d, size: %d, id: %llu, checksum: %d, data: ", packet->getOpcode(), packet->getSize(), packet->getId(), packet->getChecksum());
+	printf("packet opcode: %d, size: %d, hash: %lu checksum: %d, data: ", packet->getOpcode(), packet->getSize(), packet->getId(), packet->getChecksum());
 
 	char * blockData = static_cast<BlockSendData *> (packet->getData())->getData();
 	printf("blockData block: %d , data: ", static_cast<BlockSendData *> (packet->getData())->getId());
@@ -90,6 +92,52 @@ void test_fs_transfer_sendData() {
 
 int main() {
 	Client client;
+
+    /*
+    ClientTCPSocket client = ClientTCPSocket("0.0.0.0");
+
+    auto* data = new FS_Track(0, false, 82);
+
+    set_RegUpdateData(data);
+
+    std::pair<uint8_t *, uint32_t> buf = data->FS_Track::fs_track_to_buffer();
+
+    std::cout << buf.second << std::endl;
+
+    client.sendData(buf.first, buf.second);
+
+    delete data;
+
+    data = new FS_Track(1, true, 124);
+
+    set_RegUpdateData(data);
+
+    buf = data->FS_Track::fs_track_to_buffer();
+
+    client.sendData(buf.first, buf.second);
+
+    delete data;
+
+    data = new FS_Track(3, true, 150);
+
+    set_PostFileBlocks(data);
+
+    buf = data->FS_Track::fs_track_to_buffer();
+
+    client.sendData(buf.first, buf.second);
+
+    delete data;
+
+    data = new FS_Track(4, false, 200);
+
+    set_ErrorMessage(data);
+
+    buf = data->FS_Track::fs_track_to_buffer();
+
+    client.sendData(buf.first, buf.second);
+
+    delete data;
+    */
 
 	return 0;
 }

@@ -6,6 +6,18 @@
 #include "fs_track.h"
 #include "fs_track_test.h"
 
+#define BUFFER_SIZE 1500
+
+void read_data(FS_Track* data){
+    uint8_t OPCode = data->fs_track_getOpt();
+
+    if(OPCode == 0 || OPCode == 1) read_RegUpdateData(data);
+
+    else if(OPCode == 3) read_PostFileBlocks(data);
+
+    else if(OPCode == 4) read_ErrorMessage(data);
+}
+
 int main () {
     // printf("%lu\n", offsetof(FS_Transfer_Packet, data));
     // printf("%lu\n", sizeof(FS_Transfer_Packet));
@@ -14,21 +26,32 @@ int main () {
     ServerTCPSocket server = ServerTCPSocket();
     server.socketListen();
 
-    ClientTCPSocket client = ClientTCPSocket(inet_ntoa(server.addr.sin_addr));
+    ServerTCPSocket::SocketInfo new_connection;
 
-    if (fork() == 0) { // client
-        char buff[50] = "Hello World";
+    uint8_t* buffer = new uint8_t[BUFFER_SIZE];
+    uint32_t bytes;
+    bool first;
+    FS_Track* data;
 
-        client.sendData(buff, 50);
-        _exit(0);
-    } else { // server
-        char buff2[50];
+    while(true){
+        data = new FS_Track();
+        first = true;
 
-        ServerTCPSocket::SocketInfo new_connection = server.acceptClient();
+        new_connection = server.acceptClient();
 
-        new_connection.receiveData(buff2, 50);
 
-        printf("%s\n", buff2);
+        while((bytes = new_connection.receiveData(buffer, BUFFER_SIZE)) > 0){
+            if(first) {
+                data->fs_track_read_buffer(buffer, bytes);
+                first = false;
+            }
+            else data->set_data(buffer, bytes);
+        }
+
+        read_data(data);
     }
+
+    delete[] (char*) buffer;
+
     return 0;
 }

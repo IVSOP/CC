@@ -3,22 +3,32 @@
 #include "fs_track.h"
 #include "TCP_socket.h"
 #include "convert_types.h"
+#include "errors.h"
 
 /* Constructors */
 
-FS_Track::FS_Track(uint8_t opcode, bool opts, uint64_t id) {
+FS_Track::FS_Track(uint8_t opcode, bool opts, uint64_t hash) {
     this->opcode_opts = ((opcode << 1) + opts);
     FS_Track::set_Size(0);
-    this->id = id;
+    this->hash = hash;
     this->data = nullptr;
+    this->dataSize = 0;
 }
 
-FS_Track::~FS_Track(){
-    delete[] (char*) this->data;
+FS_Track::FS_Track() {
+    this->opcode_opts = 0;
+    FS_Track::set_Size(0);
+    this->hash = 0;
+    this->data = nullptr;
+    this->dataSize = 0;
+}
+
+FS_Track::~FS_Track() {
+    if(this->dataSize > 0) delete [] (uint8_t*) this->data;
 }
 
 FS_Track::RegUpdateData::RegUpdateData(uint64_t file_id, std::vector<uint32_t> block_numbers) {
-    this->file_id = file_id;
+    this->file_hash = file_id;
     this->block_numbers = std::vector<uint32_t>(block_numbers);
 }
 
@@ -50,18 +60,26 @@ void FS_Track::set_Size(uint32_t bytes) {
     this->size[2] = (std::uint8_t) ((bytes) & 0xFF);
 }
 
-void FS_Track::set_data(void* buf, uint32_t size){
-    this->data = new char[size];
-    memcpy(this->data, buf, size);
-
-    this->set_Size(size);
-}
-
 /* private Functions end */
+
+void FS_Track::set_data(void* buf, uint32_t size){
+    uint32_t newSize = this->dataSize + size;
+    uint8_t* newData = new uint8_t [newSize];
+
+    if(this->dataSize > 0){
+        memcpy(newData, this->data, this->dataSize);
+        delete [] (uint8_t*) this->data;
+    }
+
+    memcpy(&newData[this->dataSize], buf, size);
+
+    this->data = newData;
+    this->dataSize = newSize;
+}
 
 void FS_Track::fs_track_read_buffer(void* buf, ssize_t size){
     if(size < 4){
-        perror("No data to read.");
+        print_error("No data to read.")
 
         return;
     }
@@ -77,24 +95,24 @@ void FS_Track::fs_track_read_buffer(void* buf, ssize_t size){
     curPos += 3;
 
     bool hasID = this->fs_track_getOpt() == 1;
-    uint32_t dataSize = this->fs_track_getSize();
 
     if(hasID){
-        memcpy(&(this->id), &buffer[curPos], 8);
+        memcpy(&(this->hash), &buffer[curPos], 8);
         curPos += 8;
     }
 
+    uint32_t dataSize = size - curPos;
     if(dataSize > 0) this->set_data(&buffer[curPos], dataSize);
 }
 
-std::pair<char*, uint32_t> FS_Track::fs_track_to_buffer(){
+std::pair<uint8_t *, uint32_t> FS_Track::fs_track_to_buffer(){
     uint32_t dataSize = this->fs_track_getSize();
     uint32_t bufferSize = 4 + dataSize;
 
     bool hasID = this->fs_track_getOpt() == 1;
     if(hasID) bufferSize += 8;
 
-    char* buffer = (char*) new char[bufferSize];
+    uint8_t* buffer = (uint8_t*) new uint8_t[bufferSize];
 
     uint32_t curPos = 0;
 
@@ -105,7 +123,7 @@ std::pair<char*, uint32_t> FS_Track::fs_track_to_buffer(){
     curPos += 3;
 
     if(hasID) {
-        memcpy(&buffer[curPos], &this->id, 8);
+        memcpy(&buffer[curPos], &this->hash, 8);
         curPos += 8;
     }
 
@@ -113,7 +131,7 @@ std::pair<char*, uint32_t> FS_Track::fs_track_to_buffer(){
         memcpy(&buffer[curPos], this->data, dataSize);
     }
 
-    return std::pair<char*, uint32_t>(buffer, bufferSize);
+    return std::pair<uint8_t *, uint32_t>(buffer, bufferSize);
 }
 
 uint8_t FS_Track::fs_track_getOpcode() {
@@ -131,7 +149,7 @@ uint32_t FS_Track::fs_track_getSize() {
 }
 
 uint64_t FS_Track::fs_track_getId() {
-    return this->id;
+    return this->hash;
 }
 
 // TODO No update não podiamos usar a mesma estrutura do post?
@@ -150,7 +168,13 @@ void FS_Track::RegUpdateData_set_data(const std::vector<RegUpdateData>& data) {
     // For each struct
     for(const auto& fileBlock : data){
         // Serialized file Id
-        push_uint64_into_vector_uint8(serializedData, fileBlock.file_id);
+        push_uint64_into_vector_uint8(serializedData, fileBlock.file_hash);
+
+        /*
+        if(fileBlock.file_hash == 64){
+            printf("Ola\n");
+        }
+         */
 
         uint32_t blocks_len = fileBlock.block_numbers.size();
         // Serialize block_numbers length
@@ -165,6 +189,7 @@ void FS_Track::RegUpdateData_set_data(const std::vector<RegUpdateData>& data) {
     }
 
     this->set_data(serializedData->data(), totalBytes);
+    this->set_Size(totalBytes);
     delete serializedData;
 }
 
@@ -174,13 +199,13 @@ void FS_Track::RegUpdateData_set_data(const std::vector<RegUpdateData>& data) {
  */
 std::vector<FS_Track::RegUpdateData> FS_Track::RegUpdateData_get_data() {
     // Serialized data
-    char* serializedData = (char*) this->data;
+    uint8_t * serializedData = (uint8_t *) this->data;
 
     uint32_t i = 0;
     uint32_t len = vptr_to_uint32(serializedData, &i);
 
     if(len == 0) {
-        perror("No data received");
+        print_error("No data received");
 
         return {};
     }
@@ -188,10 +213,9 @@ std::vector<FS_Track::RegUpdateData> FS_Track::RegUpdateData_get_data() {
     std::vector<FS_Track::RegUpdateData> deserializedData = std::vector<FS_Track::RegUpdateData>();
 
     uint64_t file_id;
-    uint32_t block_number;
 
     for(uint32_t j = 0; j < len; j++){
-        // Deserialize file id
+        // Deserialize file hash
         file_id = vptr_to_uint64(serializedData, &i);
 
         // Deserialize block number
@@ -242,7 +266,7 @@ void FS_Track::PostFileBlocks_set_data(const std::vector<FS_Track::PostFileBlock
 
     // Update FS_Track
     this->set_data(serializedData->data(), totalBytes);
-
+    this->set_Size(totalBytes);
     delete serializedData;
 }
 
@@ -253,14 +277,14 @@ void FS_Track::PostFileBlocks_set_data(const std::vector<FS_Track::PostFileBlock
 std::vector<FS_Track::PostFileBlocksData> FS_Track::PostFileBlocks_get_data() {
     auto deserializedData = std::vector<FS_Track::PostFileBlocksData>();
 
-    char* serializedData = (char*) this->data;
+    uint8_t * serializedData = (uint8_t *) this->data;
     uint32_t i = 0;
 
     // Calculate total number of structs sent
     uint32_t len = vptr_to_uint32(serializedData, &i);
 
     if(len == 0) {
-        perror("No data received");
+        print_error("No data received");
 
         return {};
     }
@@ -311,7 +335,7 @@ void FS_Track::ErrorMessage_set_data(std::string &details) {
     }
 
     this->set_data(serializedData->data(), totalBytes);
-
+    this->set_Size(totalBytes);
     delete serializedData;
 }
 
@@ -322,13 +346,13 @@ void FS_Track::ErrorMessage_set_data(std::string &details) {
 FS_Track::ErrorMessageData FS_Track::ErrorMessage_get_data() {
     auto deserializedData = std::string();
 
-    char* serializedData = (char*) this->data;
+    uint8_t* serializedData = (uint8_t*) this->data;
     uint32_t i = 0;
 
     uint32_t filename_len = vptr_to_uint32(serializedData, &i);
 
     if(filename_len == 0) {
-        perror("No data received");
+        print_error("No data received");
 
         return std::string();
     }

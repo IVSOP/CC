@@ -6,10 +6,10 @@
 
 /* Reg Update data */
 
-void set_UpdateFileBlocks(FS_Track* data){
+void set_RegUpdateData(FS_Track* data){
     std::vector<FS_Track::RegUpdateData> dados = std::vector<FS_Track::RegUpdateData>();
 
-    for(int i = 0; i < 5; i++){
+    for(int i = 64; i < 65; i++){
         std::vector<uint32_t> blocks = std::vector<uint32_t>();
 
         for(int j = 1; j <= (2*i)+1; j++) blocks.emplace_back(j);
@@ -20,9 +20,9 @@ void set_UpdateFileBlocks(FS_Track* data){
     data->RegUpdateData_set_data(dados);
 }
 
-void read_UpdateFileBlocks(FS_Track* data){
+void read_RegUpdateData(FS_Track* data){
     for(const auto& file : data->RegUpdateData_get_data()){
-        std::cout << "File: " << file.file_id << std::endl;
+        std::cout << "File: " << file.file_hash << std::endl;
 
         for(const auto& block : file.block_numbers){
             std::cout << block << std::endl;
@@ -32,8 +32,8 @@ void read_UpdateFileBlocks(FS_Track* data){
     }
 }
 
-void testUpdateFileBlocks(){
-    testCommunication(set_UpdateFileBlocks, read_UpdateFileBlocks);
+void testRegUpdateData(){
+    testCommunication(set_RegUpdateData, read_RegUpdateData);
 }
 
 /* Post File Blocks */
@@ -100,7 +100,7 @@ void testCommunication (void set(FS_Track*), void get(FS_Track*)) {
 
         set(data);
 
-        std::pair<char*, uint32_t> buf = data->FS_Track::fs_track_to_buffer();
+        std::pair<uint8_t*, uint32_t> buf = data->FS_Track::fs_track_to_buffer();
 
         client.sendData(buf.first, buf.second);
 

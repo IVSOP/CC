@@ -32,7 +32,8 @@ add_executable(Node
 	src/common/fs_track.cpp
 	src/common/TCP_socket.cpp
 	src/common/convert_types.cpp
-	src/common/UDP_socket.cpp)
+	src/common/UDP_socket.cpp
+	src/common/fs_track_test.cpp)
 
 target_include_directories(Server
 	PUBLIC include/common

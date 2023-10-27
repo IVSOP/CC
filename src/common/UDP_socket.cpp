@@ -10,7 +10,7 @@ NodeUDPSocket :: NodeUDPSocket()
 {
     //Create socket fd
     if ((node_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
-        perror("Error creating UDP socket");
+        print_error("Error creating UDP socket");
         exit(EXIT_FAILURE); 
     } 
 
