@@ -6,6 +6,7 @@
 #include "fs_transfer.h"
 #include <unordered_map> 
 #include <thread>
+#include "bounded_buffer.h"
 
 struct Client {
 

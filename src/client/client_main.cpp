@@ -90,8 +90,35 @@ void test_fs_transfer_sendData() {
 
 }
 
+void produce(BoundedBuffer<int, 10> &buff) {
+	while(1) {
+		for (int i = 0; i < 15; i++) {
+			buff.push(i);
+		}
+		sleep(1);
+	}
+}
+
+void consume(BoundedBuffer<int, 10> &buff) {
+	while (1) {
+		printf("value:%d\n",buff.pop());
+	}
+}
+
 int main() {
-	Client client;
+	//Client client;
+
+	BoundedBuffer<int, 10> buff;
+
+	std::thread producer(produce, std::ref(buff));
+
+	std::thread consumer1(consume, std::ref(buff));
+	std::thread consumer2(consume, std::ref(buff));
+
+
+	producer.join();
+	consumer1.join();
+	consumer2.join();
 
     /*
     ClientTCPSocket client = ClientTCPSocket("0.0.0.0");
