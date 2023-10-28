@@ -15,47 +15,48 @@
 
 template<typename T, size_t len>
 class BoundedBuffer {
-	public:
-		BoundedBuffer() : size(0) { }
-		~BoundedBuffer() = default;
+public:
+    BoundedBuffer() : size(0) {}
 
-		void push(const T &item) {
-			std::unique_lock<std::mutex> lock(mutex); // lock fica aqui e so a mutex e que e comum a todos?????????????????
+    ~BoundedBuffer() = default;
 
-			while (size >= len) { // full
-				notFull.wait(lock); // em vez de while loop podemos passar lambda function
-			}
+    void push(const T &item) {
+        std::unique_lock<std::mutex> lock(mutex); // lock fica aqui e so a mutex e que e comum a todos?????????????????
 
-			data[size] = item;
-			size++;
+        while (size >= len) { // full
+            notFull.wait(lock); // em vez de while loop podemos passar lambda function
+        }
 
-			notEmpty.notify_one();
-			lock.unlock();
-		}
+        data[size] = item;
+        size++;
 
-		T pop() { // ineficiente porque copia memoria, mas fica organizado. em principio nunca vai ser muita memoria tbm
-			std::unique_lock<std::mutex> lock(mutex); // lock fica aqui e so a mutex e que e comum a todos?????????????????
+        notEmpty.notify_one();
+        lock.unlock();
+    }
 
-			while (size < 1) { // empty
-				notEmpty.wait(lock); // em vez de while loop podemos passar lambda function
-			}
+    T pop() { // ineficiente porque copia memoria, mas fica organizado. em principio nunca vai ser muita memoria tbm
+        std::unique_lock<std::mutex> lock(mutex); // lock fica aqui e so a mutex e que e comum a todos?????????????????
 
-			size--;
-			const size_t _size = size;
+        while (size < 1) { // empty
+            notEmpty.wait(lock); // em vez de while loop podemos passar lambda function
+        }
 
-			notFull.notify_one();
-			lock.unlock();
+        size--;
+        const size_t _size = size;
 
-			return data[_size]; // ja levou --
-		}
+        notFull.notify_one();
+        lock.unlock();
 
-	private:
-		T data[len];
-		size_t size;
-		std::mutex mutex;
+        return data[_size]; // ja levou --
+    }
 
-		std::condition_variable notFull;
-    	std::condition_variable notEmpty;
+private:
+    T data[len];
+    size_t size;
+    std::mutex mutex;
+
+    std::condition_variable notFull;
+    std::condition_variable notEmpty;
 };
 
 #endif

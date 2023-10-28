@@ -11,7 +11,7 @@
 // mas e dinamico e nao estatico. ja nem quero saber
 
 struct bitMap {
-	std::vector<bool> data;
+    std::vector<bool> data;
 };
 
 

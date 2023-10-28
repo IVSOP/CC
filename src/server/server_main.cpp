@@ -8,26 +8,31 @@
 #include "fs_track.h"
 #include "fs_track_test.h"
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 #include "server.h"
 
 #define BUFFER_SIZE (uint32_t) 1500
 
-void read_data(FS_Track* data){
+static std::mutex mtx = std::mutex();
+static std::condition_variable cdt = std::condition_variable();
+
+void read_data(FS_Track *data) {
     uint8_t OPCode = data->fs_track_getOpcode();
 
-    if(OPCode == 0 || OPCode == 1) read_RegUpdateData(data);
+    if (OPCode == 0 || OPCode == 1) read_RegUpdateData(data);
 
-    else if(OPCode == 3) read_PostFileBlocks(data);
+    else if (OPCode == 3) read_PostFileBlocks(data);
 
-    else if(OPCode == 4) read_ErrorMessage(data);
+    else if (OPCode == 4) read_ErrorMessage(data);
 }
 
-void serveClient(ServerTCPSocket::SocketInfo connection){
-    uint8_t* buffer = new uint8_t[BUFFER_SIZE];
+void serveClient(ServerTCPSocket::SocketInfo connection) {
+    uint8_t *buffer = new uint8_t[BUFFER_SIZE];
     uint32_t bytes, remainBytes;
-    FS_Track* data;
+    FS_Track *data;
 
-    while(true) {
+    while (true) {
         data = new FS_Track();
 
         bytes = connection.receiveData(buffer, 4);
@@ -56,20 +61,31 @@ void serveClient(ServerTCPSocket::SocketInfo connection){
         delete data;
     }
 
-    delete[] (char*) buffer;
+    delete[] (char *) buffer;
+
+    std::unique_lock<std::mutex> lock = std::unique_lock<std::mutex>(mtx);
+    cdt.notify_one();
 }
 
-void acceptClients(){
+void acceptClients(std::vector<ThreadRAII>& threadGraveyard) {
     ServerTCPSocket server = ServerTCPSocket();
     server.socketListen();
 
     ServerTCPSocket::SocketInfo new_connection;
 
-    while(true){
+    while (true) {
         new_connection = server.acceptClient();
 
-        ThreadRAII tr(std::thread(serveClient,new_connection), ThreadRAII::DtorAction::join);
+        threadGraveyard.emplace_back(std::thread(serveClient, new_connection), ThreadRAII::DtorAction::join);
+    }
+}
 
+void cleanUpThreads(std::vector<ThreadRAII>& threadGraveyard){
+    std::unique_lock<std::mutex> lock = std::unique_lock<std::mutex>(mtx);
+    while(true){
+        cdt.wait(lock);
+
+        threadGraveyard.erase(threadGraveyard.begin(), threadGraveyard.end());
     }
 }
 
@@ -86,11 +102,17 @@ void acceptClients(){
 //     return 0;
 // }
 
-int main () {
+int main() {
+    /*
     Server s;
-    std::vector<uint32_t> josefina = {125,225,3,526};
-    FS_Track::RegUpdateData data = FS_Track::RegUpdateData(1240912490,josefina);
-    s.add_new_info(124152,data);
+    std::vector<uint32_t> josefina = {125, 225, 3, 526};
+    FS_Track::RegUpdateData data = FS_Track::RegUpdateData(1240912490, josefina);
+    s.add_new_info(124152, data);
     s.print_map();
+    */
 
+    std::vector<ThreadRAII> threadGraveyard = std::vector<ThreadRAII>();
+    ThreadRAII cleanUp(std::thread([&](){ cleanUpThreads(threadGraveyard); /*Lambda Function*/}), ThreadRAII::DtorAction::join);
+
+    acceptClients(threadGraveyard);
 }

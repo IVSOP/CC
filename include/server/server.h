@@ -7,17 +7,20 @@
 #include "UDP_socket.h"
 #include "fs_track.h"
 
-typedef uint64_t HASH_TYPE ;
-typedef uint32_t IP_TYPE ;
-typedef uint32_t BLOCK_TYPE ;
+typedef uint64_t HASH_TYPE;
+typedef uint32_t IP_TYPE;
+typedef uint32_t BLOCK_TYPE;
 
 class Server {
 public:
-	Server();
-	~Server();
+    Server();
 
-    void add_new_info(uint32_t ip, FS_Track::RegUpdateData& newNode);
+    ~Server();
+
+    void add_new_info(uint32_t ip, FS_Track::RegUpdateData &newNode);
+
     std::vector<uint32_t> get_nodes_with_file(HASH_TYPE hash);
+
     void print_map();
 
 private:

@@ -12,25 +12,27 @@
 #include <thread>
 #include <memory>
 
-class ThreadRAII{
+class ThreadRAII {
 public:
-    enum class DtorAction {join, detach};
+    enum class DtorAction {
+        join, detach
+    };
 
-    ThreadRAII(std::thread&& t, DtorAction a) : action(a), t(std::move(t)) {}
+    ThreadRAII(std::thread &&t, DtorAction a) : action(a), t(std::move(t)) {}
 
     ~ThreadRAII() {
-        if(t.joinable()){
-            if(action == DtorAction::join) {
+        if (t.joinable()) {
+            if (action == DtorAction::join) {
                 t.join();
-            }
-            else t.detach();
+            } else t.detach();
         }
     }
 
-    ThreadRAII(ThreadRAII&&) = default;
-    ThreadRAII& operator = (ThreadRAII&&) = default;
+    ThreadRAII(ThreadRAII &&) = default;
 
-    std::thread& get() {return t;}
+    ThreadRAII &operator=(ThreadRAII &&) = default;
+
+    std::thread &get() { return t; }
 
 private:
     DtorAction action;
