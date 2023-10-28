@@ -25,6 +25,9 @@ public:
 
         RegUpdateData(uint64_t, std::vector<uint32_t>);
         ~RegUpdateData();
+
+        uint64_t getFileHash();
+        std::vector<uint32_t> getBlockNumbers(); //faz deep copy
     };
 
     struct PostFileBlocksData{

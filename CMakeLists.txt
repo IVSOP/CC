@@ -19,6 +19,7 @@ include_directories(${OPENSSL_INCLUDE_DIR})
 
 add_executable(Server
 	src/server/server_main.cpp
+	src/server/server.cpp
 	src/common/fs_track.cpp
 	src/common/TCP_socket.cpp
 	src/common/convert_types.cpp

@@ -34,6 +34,14 @@ FS_Track::RegUpdateData::RegUpdateData(uint64_t file_id, std::vector<uint32_t> b
 
 FS_Track::RegUpdateData::~RegUpdateData() = default;
 
+uint64_t FS_Track::RegUpdateData::getFileHash() {
+    return this->file_hash;
+}
+
+std::vector<uint32_t> FS_Track::RegUpdateData::getBlockNumbers() {
+    return std::vector<uint32_t>(this->block_numbers);
+};
+
 FS_Track::PostFileBlocksData::PostFileBlocksData(struct in_addr ip, std::vector<uint32_t> block_numbers) {
     this->ip = in_addr();
     this->ip.s_addr = ip.s_addr;

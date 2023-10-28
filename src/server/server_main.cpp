@@ -8,6 +8,7 @@
 #include "fs_track.h"
 #include "fs_track_test.h"
 #include <thread>
+#include "server.h"
 
 #define BUFFER_SIZE (uint32_t) 1500
 
@@ -72,15 +73,24 @@ void acceptClients(){
     }
 }
 
+// int main () {
+//     // printf("%lu\n", offsetof(FS_Transfer_Packet, data));
+//     // printf("%lu\n", sizeof(FS_Transfer_Packet));
+//     // printf("%lu\n", FS_TRANSFER_PACKET_SIZE);
+//     // printf("%lu\n", sizeof(FS_Data) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t));
+
+//     //ThreadPool<ServerTCPSocket::SocketInfo, 10, 8>;
+
+//     acceptClients();
+
+//     return 0;
+// }
+
 int main () {
-    // printf("%lu\n", offsetof(FS_Transfer_Packet, data));
-    // printf("%lu\n", sizeof(FS_Transfer_Packet));
-    // printf("%lu\n", FS_TRANSFER_PACKET_SIZE);
-    // printf("%lu\n", sizeof(FS_Data) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t));
+    Server s;
+    std::vector<uint32_t> josefina = {125,225,3,526};
+    FS_Track::RegUpdateData data = FS_Track::RegUpdateData(1240912490,josefina);
+    s.add_new_info(124152,data);
+    s.print_map();
 
-    //ThreadPool<ServerTCPSocket::SocketInfo, 10, 8>;
-
-    acceptClients();
-
-    return 0;
 }
