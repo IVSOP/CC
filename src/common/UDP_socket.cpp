@@ -60,7 +60,12 @@ int NodeUDPSocket::closeSocket() {
 
 ssize_t NodeUDPSocket::receiveData(void *buf, size_t len, struct sockaddr_in *from) const {
     socklen_t l = sizeof(struct sockaddr_in);
-    return recvfrom(node_fd, buf, len, MSG_WAITALL, (struct sockaddr *) from, &l);
+    const ssize_t read = recvfrom(node_fd, buf, len, 0, (struct sockaddr *) from, &l);
+	// if (read == 0) {
+	// 	print_error("Error: read 0 bytes");
+	// }
+	printf(">>>>>%ld\n", read);
+	return read;
 }
 
 //If you're sending an initial request, or sending a datagram in response to some other event (like user input, or a timeout) then you should not set the MSG_CONFIRM flag.

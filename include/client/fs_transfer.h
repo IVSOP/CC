@@ -74,7 +74,7 @@ struct FS_Transfer_Packet {
     uint32_t checksum;
     uint32_t opc_size;
     uint64_t id;
-    FS_Data data; // devia ser BlockData?
+    FS_Data data;
 
 
     // getters

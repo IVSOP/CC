@@ -92,35 +92,34 @@ void test_fs_transfer_sendData() {
 
 }
 
-void produce(BoundedBuffer<int, 10> &buff) {
-    while (1) {
-        for (int i = 0; i < 15; i++) {
-            buff.push(i);
-        }
-        sleep(1);
-    }
-}
+#include <socket_common.h>
+void new_test_fs_transfer() {
+    Client sender("127.15.15.15");
+	Client receiver("127.14.14.14");
 
-void consume(BoundedBuffer<int, 10> &buff) {
-    while (1) {
-        printf("value:%d\n", buff.pop());
-    }
+
+	FS_Transfer_Info info;
+	info.timestamp = 0;
+	// memcpy(&info.addr, &receiver.udpSocket.node_addr, sizeof(struct sockaddr_in));
+	setIPv4("127.14.14.14", &info.addr);
+	char str[] = "Hello World";
+	info.packet.setData(str, sizeof(str));
+	info.packet.setId(69);
+	info.packet.setOpcode(1);
+
+	puts("sending info");
+	sender.sendInfo(info);
+	puts("sent");
+
+	while (true) {
+		// faz todo o sentido do mundo, sem isto, o programa manda pacotes infinitamente
+		// (main thread sai da main e as outras ficam a falar sozinhas e bugam)
+	}
 }
 
 int main() {
-    Client client;
 
-    BoundedBuffer<int, 10> buff;
-
-    std::thread producer(produce, std::ref(buff));
-
-    std::thread consumer1(consume, std::ref(buff));
-    std::thread consumer2(consume, std::ref(buff));
-
-
-    producer.join();
-    consumer1.join();
-    consumer2.join();
+	Client client;
 
     /*
     ClientTCPSocket client = ClientTCPSocket("0.0.0.0");
