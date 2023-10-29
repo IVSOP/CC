@@ -64,7 +64,7 @@ ssize_t NodeUDPSocket::receiveData(void *buf, size_t len, struct sockaddr_in *fr
 	// if (read == 0) {
 	// 	print_error("Error: read 0 bytes");
 	// }
-	printf(">>>>>%ld\n", read);
+	// printf(">>>>>%ld\n", read);
 	return read;
 }
 

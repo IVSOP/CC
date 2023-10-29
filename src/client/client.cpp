@@ -11,7 +11,7 @@ Client::Client() // por default sockets aceitam tudo
 }
 
 Client::Client(const std::string &IPv4)
-: socketToServer(SERVER_IP), udpSocket(IPv4), inputBuffer(), outputBuffer(), blocksPerFile()
+: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile()
 {
     // register
     initUploadLoop();
@@ -23,7 +23,9 @@ Client::~Client() {
 }
 
 void printPacket(FS_Transfer_Info& info) {
-	printf("checksum:%u, opc: %u size: %u id: %lu\ndata as string: %s\n", info.packet.checksum, info.packet.getOpcode(), info.packet.getSize(), info.packet.id, reinterpret_cast<char *>(&info.packet.data));
+	printf("checksum:%u (it is %s), opc: %u size: %u id: %lu\ndata as string: %s\n", info.packet.checksum,
+		info.packet.calculateChecksum() == info.packet.checksum ? "correct" : "wrong",
+		info.packet.getOpcode(), info.packet.getSize(), info.packet.id, reinterpret_cast<char *>(&info.packet.data));
 }
 
 // read from socket into a buffer, does nothing else
@@ -73,6 +75,8 @@ void Client::initUploadLoop() {
     // creates a thread that listens in permanently, and writes the data to a buffer
     // another thread tries permanently to write to another buffer
 	// another thread works on the things read into the input buffer
+
+	// meter threads num inicializador em vez de dar detach??
     readThread = std::thread(&Client::readLoop, this);
 	readThread.detach();
     writeThread = std::thread(&Client::writeLoop, this);

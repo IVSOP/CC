@@ -41,7 +41,7 @@ struct FS_Transfer_Info {
 struct Client {
 
     Client();
-	Client(const std::string &IPv4); // para debug, set da socket udp interna
+	Client(const std::string &IPv4); // para set do server IP
 
     ~Client();
 

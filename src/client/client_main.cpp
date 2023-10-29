@@ -92,34 +92,68 @@ void test_fs_transfer_sendData() {
 
 }
 
-#include <socket_common.h>
-void new_test_fs_transfer() {
-    Client sender("127.15.15.15");
-	Client receiver("127.14.14.14");
+// construtor do client deixou de fazer o que isto precisa
+// #include <socket_common.h>
+// void new_test_fs_transfer() {
+//     Client sender("127.15.15.15");
+// 	Client receiver("127.14.14.14");
 
 
-	FS_Transfer_Info info;
-	info.timestamp = 0;
-	// memcpy(&info.addr, &receiver.udpSocket.node_addr, sizeof(struct sockaddr_in));
-	setIPv4("127.14.14.14", &info.addr);
-	char str[] = "Hello World";
-	info.packet.setData(str, sizeof(str));
-	info.packet.setId(69);
-	info.packet.setOpcode(1);
+// 	FS_Transfer_Info info;
+// 	info.timestamp = 0;
+// 	// memcpy(&info.addr, &receiver.udpSocket.node_addr, sizeof(struct sockaddr_in));
+// 	setIPv4("127.14.14.14", &info.addr);
+// 	char str[] = "Hello World";
+// 	info.packet.setData(str, sizeof(str));
+// 	info.packet.setId(69);
+// 	info.packet.setOpcode(1);
 
-	puts("sending info");
-	sender.sendInfo(info);
-	puts("sent");
+// 	puts("sending info");
+// 	sender.sendInfo(info);
+// 	puts("sent");
 
-	while (true) {
-		// faz todo o sentido do mundo, sem isto, o programa manda pacotes infinitamente
-		// (main thread sai da main e as outras ficam a falar sozinhas e bugam)
+// 	while (true) {
+// 		// faz todo o sentido do mundo, sem isto, o programa manda pacotes infinitamente
+// 		// (main thread sai da main e as outras ficam a falar sozinhas e bugam)
+// 	}
+// }
+
+#include "socket_common.h"
+
+int main(int argc, char *argv[]) {
+
+	if (argc == 1) {
+		puts("server IP not passed as argument");
+		exit(EXIT_FAILURE);
 	}
-}
+	char *server_ip = argv[1];	
 
-int main() {
+	Client client(server_ip);
 
-	Client client;
+	char c;
+	FS_Transfer_Info info;
+	char IP[20];
+	char message[100];
+	// NOTA:!!!!!!!!!!!!!!!!!!!!!!! ler com cuidado, ha muitas threads a dar print em background e a ordem fica manhosa
+	while (true) {
+		puts("send packet? y/n: ");
+		std::cin >> c;
+		if (c == 'y') {
+			printf("please enter IP: ");
+			std::cin >> IP;
+			setIPv4(IP, &info.addr);
+		
+			printf("enter message: ");
+			std::cin >> message;
+			info.packet.setData(message, 100); // muda size e checksum
+		
+			client.sendInfo(info);
+		} else {
+			while (true) {
+				// fica em loop infinito para dar print as mensagens, com break saia da main
+			}
+		}
+	}
 
     /*
     ClientTCPSocket client = ClientTCPSocket("0.0.0.0");

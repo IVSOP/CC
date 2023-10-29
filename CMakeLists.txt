@@ -4,8 +4,8 @@ project(TP2)
 set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_CXX_STANDARD_REQUIRED true)
-
-SET(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -pedantic") # -Wno-unused-parameter -O2??? -ftree-vectorize -fopt-info-vec-missed or all or optimized
+													   # por causa do core, porecisa disto 
+SET(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -pedantic -pthread") # -Wno-unused-parameter -O2??? -ftree-vectorize -fopt-info-vec-missed or all or optimized
 #SET(GCC_COVERAGE_LINK_FLAGS "-lssl -lcrypto")    # "-lgcov"
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
