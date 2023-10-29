@@ -124,7 +124,7 @@ void testCommunication(void set(FS_Track *), void get(FS_Track *)) {
 
         if (data->fs_track_getOpt() == 1) {
             bytes = new_connection.receiveData(buffer, 8);
-            data->fs_track_set_hash(buffer, bytes);
+            data->fs_track_read_hash(buffer, bytes);
         }
 
         remainBytes = data->fs_track_getSize();

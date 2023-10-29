@@ -10,7 +10,7 @@
 FS_Track::FS_Track(uint8_t opcode, bool opts, uint64_t hash) {
     this->opcode_opts = ((opcode << 1) + opts);
     FS_Track::set_Size(0);
-    this->hash = hash;
+    this->hash = opts ? hash : 0;
     this->data = nullptr;
     this->dataSize = 0;
 }
@@ -99,7 +99,7 @@ void FS_Track::fs_track_header_read_buffer(void *buf, ssize_t size) {
     memcpy(this->size, &buffer[1], 3);
 }
 
-void FS_Track::fs_track_set_hash(void *buf, ssize_t size) {
+void FS_Track::fs_track_read_hash(void *buf, ssize_t size) {
     if (size < 8) {
         print_error("No data to read.")
 
@@ -154,7 +154,7 @@ uint32_t FS_Track::fs_track_getSize() {
     return ((this->size[0] << 16) + (this->size[1] << 8) + (this->size[2]));
 }
 
-uint64_t FS_Track::fs_track_getId() {
+uint64_t FS_Track::fs_track_getHash() {
     return this->hash;
 }
 

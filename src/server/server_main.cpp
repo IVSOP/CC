@@ -14,51 +14,106 @@
 
 #define BUFFER_SIZE (uint32_t) 1500
 
-static std::mutex mtx = std::mutex();
-static std::condition_variable cdt = std::condition_variable();
+void send_message(in_addr ip, FS_Track& message){
+    ClientTCPSocket client = ClientTCPSocket(inet_ntoa(ip));
 
-void read_data(FS_Track *data) {
-    uint8_t OPCode = data->fs_track_getOpcode();
+    std::pair<uint8_t *, uint32_t> buf = message.FS_Track::fs_track_to_buffer();
+    client.sendData(buf.first, buf.second);
 
-    if (OPCode == 0 || OPCode == 1) read_RegUpdateData(data);
-
-    else if (OPCode == 3) read_PostFileBlocks(data);
-
-    else if (OPCode == 4) read_ErrorMessage(data);
+    delete [] (uint8_t*) buf.first;
 }
 
-void serveClient(ServerTCPSocket::SocketInfo connection) {
+void send_post_message(Server& server, in_addr ip, uint64_t hash){
+    std::vector<FS_Track::PostFileBlocksData> data = server.get_nodes_with_file(hash);
+
+    FS_Track message = FS_Track(3, true, hash);
+
+    message.PostFileBlocks_set_data(data);
+
+    send_message(ip, message);
+}
+
+void send_error_message(in_addr ip, std::string& errorDetails){
+    FS_Track message = FS_Track(4, false, 0);
+
+    message.ErrorMessage_set_data(errorDetails);
+
+    send_message(ip, message);
+}
+
+void read_data(Server& server, in_addr& ip, FS_Track *message) {
+    uint8_t OPCode = message->fs_track_getOpcode();
+    std::string errorDetails;
+
+    switch (OPCode) {
+        // Cases 0 and 1 are the same
+        // Register node
+        case 0:
+
+        // Update node
+        case 1:
+            server.register_update_node(ip.s_addr, message->RegUpdateData_get_data());
+            break;
+
+        // Get Message
+        case 2:
+            send_post_message(server, ip, message->fs_track_getHash());
+            break;
+
+        // Post Message
+        case 3:
+            errorDetails = "Only a server can send a Post Message";
+            send_error_message(ip, errorDetails);
+            break;
+
+        // Error Message
+        case 4:
+            // TODO what to do with error messages
+            break;
+
+        // ByeBye Message
+        case 5:
+            server.delete_node(ip.s_addr);
+            break;
+        default:
+            errorDetails = "Message has invalid OPCode";
+            send_error_message(ip, errorDetails);
+            break;
+    }
+}
+
+void serveClient(ServerTCPSocket::SocketInfo connection, Server& serverData, std::mutex& mtx, std::condition_variable& cdt) {
     uint8_t *buffer = new uint8_t[BUFFER_SIZE];
     uint32_t bytes, remainBytes;
-    FS_Track *data;
+    FS_Track *message;
 
     while (true) {
-        data = new FS_Track();
+        message = new FS_Track();
 
         bytes = connection.receiveData(buffer, 4);
 
         if (bytes == 0) break;
 
-        data->fs_track_header_read_buffer(buffer, bytes);
+        message->fs_track_header_read_buffer(buffer, bytes);
 
-        if (data->fs_track_getOpt() == 1) {
+        if (message->fs_track_getOpt() == 1) {
             bytes = connection.receiveData(buffer, 8);
-            data->fs_track_set_hash(buffer, bytes);
+            message->fs_track_read_hash(buffer, bytes);
         }
 
-        remainBytes = data->fs_track_getSize();
+        remainBytes = message->fs_track_getSize();
 
         while (remainBytes > 0) {
             bytes = connection.receiveData(buffer, std::min(BUFFER_SIZE, remainBytes));
 
-            data->set_data(buffer, bytes);
+            message->set_data(buffer, bytes);
 
             remainBytes -= bytes;
         }
 
-        read_data(data);
+        read_data(serverData, connection.addr.sin_addr, message);
 
-        delete data;
+        delete message;
     }
 
     delete[] (char *) buffer;
@@ -67,20 +122,20 @@ void serveClient(ServerTCPSocket::SocketInfo connection) {
     cdt.notify_one();
 }
 
-void acceptClients(std::vector<ThreadRAII>& threadGraveyard) {
-    ServerTCPSocket server = ServerTCPSocket();
-    server.socketListen();
+void acceptClients(Server& serverData, std::vector<ThreadRAII>& threadGraveyard, std::mutex& mtx, std::condition_variable& cdt) {
+    ServerTCPSocket serverScoket = ServerTCPSocket();
+    serverScoket.socketListen();
 
     ServerTCPSocket::SocketInfo new_connection;
 
     while (true) {
-        new_connection = server.acceptClient();
+        new_connection = serverScoket.acceptClient();
 
-        threadGraveyard.emplace_back(std::thread(serveClient, new_connection), ThreadRAII::DtorAction::join);
+        threadGraveyard.emplace_back(std::thread(serveClient, new_connection, std::ref(serverData), std::ref(mtx), std::ref(cdt)), ThreadRAII::DtorAction::join);
     }
 }
 
-void cleanUpThreads(std::vector<ThreadRAII>& threadGraveyard){
+void cleanUpThreads(std::vector<ThreadRAII>& threadGraveyard, std::mutex& mtx, std::condition_variable& cdt){
     std::unique_lock<std::mutex> lock = std::unique_lock<std::mutex>(mtx);
     while(true){
         cdt.wait(lock);
@@ -111,8 +166,13 @@ int main() {
     s.print_map();
     */
 
-    std::vector<ThreadRAII> threadGraveyard = std::vector<ThreadRAII>();
-    ThreadRAII cleanUp(std::thread([&](){ cleanUpThreads(threadGraveyard); /*Lambda Function*/}), ThreadRAII::DtorAction::join);
+    Server server = Server();
 
-    acceptClients(threadGraveyard);
+    std::mutex mtx = std::mutex();
+    std::condition_variable cdt = std::condition_variable();
+
+    std::vector<ThreadRAII> threadGraveyard = std::vector<ThreadRAII>();
+    ThreadRAII cleanUp(std::thread([&](){ cleanUpThreads(threadGraveyard, mtx, cdt); /*Lambda Function*/}), ThreadRAII::DtorAction::join);
+
+    acceptClients(server, threadGraveyard, mtx, cdt);
 }

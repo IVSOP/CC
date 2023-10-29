@@ -12,16 +12,37 @@
 
 class FS_Track {
 private:
+    /**
+     * Sets message data's size
+     */
     void set_Size(uint32_t);
 
+    /**
+     * Message data's current size
+     */
     uint32_t dataSize;
 public:
+    /**
+     * Default constructor
+     */
     FS_Track();
 
-    FS_Track(uint8_t, bool, uint64_t);
+    /**
+     * Parameterized constructor
+     * @param opcode Message OPCode: indicates the type of message
+     * @param opts Message Opts: Indicates if hash is included or not
+     * @param hash Message hash: Indicates which file we are referring. If opts value is false, then this value is ignored
+     */
+    FS_Track(uint8_t opcode, bool opts, uint64_t hash);
 
+    /**
+     * Des-contructor
+     */
     ~FS_Track();
 
+    /**
+     * Struct used to send data related to registration or update of files from a FS_Node
+     */
     struct RegUpdateData {
         uint64_t file_hash;
         std::vector<uint32_t> block_numbers;
@@ -35,6 +56,9 @@ public:
         std::vector<uint32_t> getBlockNumbers(); //faz deep copy
     };
 
+    /**
+     * Struct used by FS_Track server to send the file blocks each node contains
+     */
     struct PostFileBlocksData {
         struct in_addr ip;
         std::vector<uint32_t> block_numbers;
@@ -44,6 +68,9 @@ public:
         ~PostFileBlocksData();
     };
 
+    /**
+     * Struct used to send details about an error
+     */
     struct ErrorMessageData {
         std::string details;
 
@@ -52,37 +79,111 @@ public:
         ~ErrorMessageData();
     };
 
+    /**
+     * 8 bits, from which the first 7 refer to the header OPCode and the last one refers to the header options
+     */
     uint8_t opcode_opts;
+
+    /**
+     * 24 bits used to refer the data size, in bytes
+     */
     uint8_t size[SIZE_LENGTH];
+
+    /**
+     * 64 bits used to identify a file
+     */
     uint64_t hash;
+
+    /**
+     * FS_Track protocol data
+     */
     void *data;
 
+    /**
+     * Function that reads the OPCode, Options and size of a message from a buffer
+     * @param buf Buffer
+     * @param size Buffer's size
+     */
     void fs_track_header_read_buffer(void *buf, ssize_t size);
 
-    void fs_track_set_hash(void *buf, ssize_t size);
+    /**
+     * Function that reads the hash value from a buffer
+     * @param buf Buffer
+     * @param size Buffer's size
+     */
+    void fs_track_read_hash(void *buf, ssize_t size);
 
+    /**
+     * Function that converts a FS_Track message into a buffer
+     * @return The buffer containing the FS_Track info and it's size
+     */
     std::pair<uint8_t *, uint32_t> fs_track_to_buffer();
 
-    void set_data(void *, uint32_t);
+    /**
+     * Function that reads a buffer and converts it into the FS_Track data
+     * @param buf Buffer
+     * @param size Buffer's size
+     */
+    void set_data(void * buf, uint32_t size);
 
+    /**
+     * Get FS_Track's OPCode
+     * @return FS_Track's OPCode
+     */
     uint8_t fs_track_getOpcode();
 
+    /**
+     * Get FS_Track's Options
+     * @return FS_Track's Options
+     */
     uint8_t fs_track_getOpt();
 
+    /**
+     * Get FS_Track's Size
+     * @return FS_Track's Size
+     */
     uint32_t fs_track_getSize();
 
-    uint64_t fs_track_getId();
+    /**
+     * Get FS_Track's Hash
+     * @return FS_Track's Hash
+     */
+    uint64_t fs_track_getHash();
 
+    /**
+     * Function that converts a list of RegUpdateData into FS_Track's data value
+     * @param data List of RegUpdateData
+     */
     void RegUpdateData_set_data(const std::vector<RegUpdateData> &data);
 
+    /**
+     * Function that converts FS_Track's data value into a list of RegUpdateData
+     * @return List of RegUpdateData
+     */
     std::vector<RegUpdateData> RegUpdateData_get_data();
 
+    /**
+     * Function that converts a list of PostFileBlocksData into FS_Track's data value
+     * @param data List of PostFileBlocksData
+     */
     void PostFileBlocks_set_data(const std::vector<PostFileBlocksData> &data);
 
+    /**
+     * Function that converts FS_Track's data value into a list of PostFileBlocksData
+     * @return List of PostFileBlocksData
+     */
     std::vector<PostFileBlocksData> PostFileBlocks_get_data();
 
+    /**
+     * Function that converts a string with error's details into FS_Track's data value
+     * @param data String with error's details
+     */
     void ErrorMessage_set_data(std::string &details);
 
+    /**
+     * Function that converts FS_Track's data value into a string with error's details
+     * @return String with error's details
+     */
     ErrorMessageData ErrorMessage_get_data();
 };
 

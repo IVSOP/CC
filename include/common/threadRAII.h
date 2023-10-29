@@ -14,12 +14,23 @@
 
 class ThreadRAII {
 public:
+    /**
+     * Thread actions executed on des-constructor
+     */
     enum class DtorAction {
         join, detach
     };
 
+    /**
+     * Thread constructor
+     * @param t std::thread with function to execute
+     * @param a Final thread action (join or detach)
+     */
     ThreadRAII(std::thread &&t, DtorAction a) : action(a), t(std::move(t)) {}
 
+    /**
+     * Thread des-constructor
+     */
     ~ThreadRAII() {
         if (t.joinable()) {
             if (action == DtorAction::join) {
@@ -28,14 +39,28 @@ public:
         }
     }
 
+    /**
+     * Copy constructor
+     */
     ThreadRAII(ThreadRAII &&) = default;
 
+    /**
+     * Clone constructor (?)
+     * @return ThreadRAII clone
+     */
     ThreadRAII &operator=(ThreadRAII &&) = default;
 
     std::thread &get() { return t; }
 
 private:
+    /**
+     * Thread final action
+     */
     DtorAction action;
+
+    /**
+     * Thread reference
+     */
     std::thread t;
 };
 

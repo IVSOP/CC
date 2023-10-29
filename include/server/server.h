@@ -3,6 +3,7 @@
 
 #include <unordered_map>
 #include <vector>
+#include <mutex>
 #include "TCP_socket.h"
 #include "UDP_socket.h"
 #include "fs_track.h"
@@ -19,12 +20,17 @@ public:
 
     void add_new_info(uint32_t ip, FS_Track::RegUpdateData &newNode);
 
-    std::vector<uint32_t> get_nodes_with_file(HASH_TYPE hash);
+    std::vector<FS_Track::PostFileBlocksData> get_nodes_with_file(HASH_TYPE hash);
 
     void print_map();
 
+    void register_update_node(uint32_t ip, std::vector<FS_Track::RegUpdateData> data);
+
+    void delete_node(uint32_t ip);
+
 private:
-    std::unordered_map<int64_t, std::vector<std::pair<uint32_t, std::vector<uint32_t>>>> fileMap;
+    std::unordered_map<uint64_t, std::vector<std::pair<uint32_t, std::vector<uint32_t>>>> fileMap;
+    std::mutex mtx;
 };
 
 #endif

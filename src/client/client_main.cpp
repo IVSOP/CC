@@ -121,7 +121,7 @@ void test_fs_transfer_sendData() {
 #include "socket_common.h"
 
 int main(int argc, char *argv[]) {
-
+    /*
 	if (argc == 1) {
 		puts("server IP not passed as argument");
 		exit(EXIT_FAILURE);
@@ -155,7 +155,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-    /*
+    */
     ClientTCPSocket client = ClientTCPSocket("0.0.0.0");
     FS_Track* data = nullptr;
     std::pair<uint8_t *, uint32_t> buf;
@@ -169,6 +169,8 @@ int main(int argc, char *argv[]) {
     std::cout << buf.second << std::endl;
 
     client.sendData(buf.first, buf.second);
+
+    sleep(5);
 
     delete[] (uint8_t*) buf.first;
 
@@ -184,6 +186,22 @@ int main(int argc, char *argv[]) {
 
     client.sendData(buf.first, buf.second);
 
+    sleep(5);
+
+    delete[] (uint8_t*) buf.first;
+
+    delete data;
+
+    data = new FS_Track(2, true, 1);
+
+    buf = data->FS_Track::fs_track_to_buffer();
+
+    std::cout << buf.second << std::endl;
+
+    client.sendData(buf.first, buf.second);
+
+    sleep(5);
+
     delete[] (uint8_t*) buf.first;
 
     delete data;
@@ -197,6 +215,8 @@ int main(int argc, char *argv[]) {
     std::cout << buf.second << std::endl;
 
     client.sendData(buf.first, buf.second);
+
+    sleep(5);
 
     delete[] (uint8_t*) buf.first;
 
@@ -212,10 +232,23 @@ int main(int argc, char *argv[]) {
 
     client.sendData(buf.first, buf.second);
 
+    sleep(5);
+
     delete[] (uint8_t*) buf.first;
 
     delete data;
-    */
+
+    data = new FS_Track(5, false, 0);
+
+    buf = data->FS_Track::fs_track_to_buffer();
+
+    std::cout << buf.second << std::endl;
+
+    client.sendData(buf.first, buf.second);
+
+    delete[] (uint8_t*) buf.first;
+
+    delete data;
 
     return 0;
 }
