@@ -18,15 +18,15 @@ public:
 
     ~Server();
 
-    void add_new_info(uint32_t ip, FS_Track::RegUpdateData &newNode);
+    void addNewInfo(uint32_t ip, FS_Track::RegUpdateData &newNode);
 
-    std::vector<FS_Track::PostFileBlocksData> get_nodes_with_file(HASH_TYPE hash);
+    std::vector<FS_Track::PostFileBlocksData> getNodesWithFile(HASH_TYPE hash);
 
-    void print_map();
+    void printMap();
 
-    void register_update_node(uint32_t ip, std::vector<FS_Track::RegUpdateData> data);
+    void registerUpdateNode(uint32_t ip, std::vector<FS_Track::RegUpdateData> data);
 
-    void delete_node(uint32_t ip);
+    void deleteNode(uint32_t ip);
 
 private:
     std::unordered_map<uint64_t, std::vector<std::pair<uint32_t, std::vector<uint32_t>>>> fileMap;

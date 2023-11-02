@@ -105,3 +105,7 @@ uint64_t sha3_64(const void *buf, size_t len) {
     const uint64_t *magic_ptr = reinterpret_cast<const uint64_t *>(hash);
     return *(magic_ptr);
 }
+
+uint64_t getFilenameHash(char* filename, size_t len){
+    return sha3_32(filename, len);
+}

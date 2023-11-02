@@ -5,13 +5,13 @@
  * Test function to sed RegUpdateData
  * @param data FS_Track Message
  */
-void set_RegUpdateData(FS_Track *data);
+void setRegUpdateData(FS_Track *data);
 
 /**
  * Test function to read RegUpdateData
  * @param data FS_Track Message
  */
-void read_RegUpdateData(FS_Track *data);
+void readRegUpdateData(FS_Track *data);
 
 /**
  * Function that tests RegUpdateData communication
@@ -22,13 +22,13 @@ void testRegUpdateData();
  * Test function to sed PostFileBlocks
  * @param data FS_Track Message
  */
-void set_PostFileBlocks(FS_Track *data);
+void setPostFileBlocks(FS_Track *data);
 
 /**
  * Test function to read PostFileBlocks
  * @param data FS_Track Message
  */
-void read_PostFileBlocks(FS_Track *data);
+void readPostFileBlocks(FS_Track *data);
 
 /**
  * Function that tests PostFileBlocks communication
@@ -39,13 +39,13 @@ void testPostFileBlocks();
  * Test function to sed ErrorMessage
  * @param data FS_Track Message
  */
-void set_ErrorMessage(FS_Track *data);
+void setErrorMessage(FS_Track *data);
 
 /**
  * Test function to read ErrorMessage
  * @param data FS_Track Message
  */
-void read_ErrorMessage(FS_Track *data);
+void readErrorMessage(FS_Track *data);
 
 /**
  * Function that tests ErrorMessage communication

@@ -4,8 +4,10 @@
 #include "fs_track.h"
 #include "fs_track_test.h"
 #include <checksum.h>
+#include <error.h>
 #include "client.h"
 #include "cmdline.h"
+#include "socket_common.h"
 
 
 void test_udp() {
@@ -115,23 +117,20 @@ void test_fs_transfer_sendData() {
 // 	}
 // }
 
-#include "socket_common.h"
-
 int main(int argc, char *argv[]) {
+    if(argc != 2){
+        print_error("Not enough arguments");
+        return -1;
+    }
+
     Client client = Client();
+    client.regDirectory(argv[1]);
 
-    ClientTCPSocket socket = ClientTCPSocket("0.0.0.0");
+    client.registerWithServer();
 
-    bitMap b = bitMap();
-    b.push_back(false);
-    b.push_back(true);
-    b.push_back(true);
-    b.push_back(false);
-
-    client.blocksPerFile.insert({1, b});
-    client.registerWithServer(socket);
-
+    printf("Acabou\n");
     /*
+
 	if (argc == 1) {
 		puts("server IP not passed as argument");
 		exit(EXIT_FAILURE);
@@ -189,7 +188,7 @@ int main(int argc, char *argv[]) {
 
     data = new FS_Track(1, true, 124);
 
-    set_RegUpdateData(data);
+    setRegUpdateData(data);
 
     buf = data->FS_Track::fs_track_to_buffer();
 
@@ -219,7 +218,7 @@ int main(int argc, char *argv[]) {
 
     data = new FS_Track(3, true, 150);
 
-    set_PostFileBlocks(data);
+    setPostFileBlocks(data);
 
     buf = data->FS_Track::fs_track_to_buffer();
 
@@ -235,7 +234,7 @@ int main(int argc, char *argv[]) {
 
     data = new FS_Track(4, false, 200);
 
-    set_ErrorMessage(data);
+    setErrorMessage(data);
 
     buf = data->FS_Track::fs_track_to_buffer();
 
@@ -251,7 +250,7 @@ int main(int argc, char *argv[]) {
 
     data = new FS_Track(5, false, 0);
 
-    buf = data->FS_Track::fs_track_to_buffer();
+    buf = data->FS_Track::fsTrackToBuffer();
 
     std::cout << buf.second << std::endl;
 

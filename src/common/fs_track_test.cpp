@@ -6,7 +6,7 @@
 
 /* Reg Update data */
 
-void set_RegUpdateData(FS_Track *data) {
+void setRegUpdateData(FS_Track *data) {
     std::vector<FS_Track::RegUpdateData> dados = std::vector<FS_Track::RegUpdateData>();
 
     for (int i = 0; i < 5; i++) {
@@ -17,11 +17,11 @@ void set_RegUpdateData(FS_Track *data) {
         dados.emplace_back(i, blocks);
     }
 
-    data->RegUpdateData_set_data(dados);
+    data->regUpdateDataSetData(dados);
 }
 
-void read_RegUpdateData(FS_Track *data) {
-    for (const auto &file: data->RegUpdateData_get_data()) {
+void readRegUpdateData(FS_Track *data) {
+    for (const auto &file: data->regUpdateDataGetData()) {
         std::cout << "File: " << file.file_hash << std::endl;
 
         for (const auto &block: file.block_numbers) {
@@ -33,12 +33,12 @@ void read_RegUpdateData(FS_Track *data) {
 }
 
 void testRegUpdateData() {
-    testCommunication(set_RegUpdateData, read_RegUpdateData);
+    testCommunication(setRegUpdateData, readRegUpdateData);
 }
 
 /* Post File Blocks */
 
-void set_PostFileBlocks(FS_Track *data) {
+void setPostFileBlocks(FS_Track *data) {
     std::vector<FS_Track::PostFileBlocksData> dados = std::vector<FS_Track::PostFileBlocksData>();
 
     for (uint32_t i = 0; i < 3; i++) {
@@ -54,11 +54,11 @@ void set_PostFileBlocks(FS_Track *data) {
         dados.emplace_back(ip, blocks);
     }
 
-    data->PostFileBlocks_set_data(dados);
+    data->postFileBlocksSetData(dados);
 }
 
-void read_PostFileBlocks(FS_Track *data) {
-    for (const auto &strct: data->PostFileBlocks_get_data()) {
+void readPostFileBlocks(FS_Track *data) {
+    for (const auto &strct: data->postFileBlocksGetData()) {
         std::cout << "IP: " << strct.ip.s_addr << std::endl;
         for (auto i: strct.block_numbers) {
             std::cout << i << std::endl;
@@ -69,23 +69,23 @@ void read_PostFileBlocks(FS_Track *data) {
 }
 
 void testPostFileBlocks() {
-    testCommunication(set_PostFileBlocks, read_PostFileBlocks);
+    testCommunication(setPostFileBlocks, readPostFileBlocks);
 }
 
 /* Error Message */
 
-void set_ErrorMessage(FS_Track *data) {
+void setErrorMessage(FS_Track *data) {
     std::string ola = "Hello World";
 
-    data->FS_Track::ErrorMessage_set_data(ola);
+    data->FS_Track::errorMessageSetData(ola);
 }
 
-void read_ErrorMessage(FS_Track *data) {
-    std::cout << data->ErrorMessage_get_data().details << std::endl;
+void readErrorMessage(FS_Track *data) {
+    std::cout << data->errorMessageGetData().details << std::endl;
 }
 
 void testErrorMessage() {
-    testCommunication(set_ErrorMessage, read_ErrorMessage);
+    testCommunication(setErrorMessage, readErrorMessage);
 }
 
 void testCommunication(void set(FS_Track *), void get(FS_Track *)) {
@@ -100,7 +100,7 @@ void testCommunication(void set(FS_Track *), void get(FS_Track *)) {
 
         set(data);
 
-        std::pair<uint8_t *, uint32_t> buf = data->FS_Track::fs_track_to_buffer();
+        std::pair<uint8_t *, uint32_t> buf = data->FS_Track::fsTrackToBuffer();
 
         client.sendData(buf.first, buf.second);
 
@@ -120,19 +120,19 @@ void testCommunication(void set(FS_Track *), void get(FS_Track *)) {
 
         if (bytes < 4) return;
 
-        data->fs_track_header_read_buffer(buffer, bytes);
+        data->fsTrackHeaderReadBuffer(buffer, bytes);
 
-        if (data->fs_track_getOpt() == 1) {
+        if (data->fsTrackGetOpt() == 1) {
             bytes = new_connection.receiveData(buffer, 8);
-            data->fs_track_read_hash(buffer, bytes);
+            data->fsTrackReadHash(buffer, bytes);
         }
 
-        remainBytes = data->fs_track_getSize();
+        remainBytes = data->fsTrackGetSize();
 
         while (remainBytes > 0) {
             bytes = new_connection.receiveData(buffer, std::min((uint32_t) 1500, remainBytes));
 
-            data->set_data(buffer, bytes);
+            data->setData(buffer, bytes);
 
             remainBytes -= bytes;
         }

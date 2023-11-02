@@ -15,7 +15,7 @@
 #define BUFFER_SIZE (uint32_t) 1500
 
 void read_data(Server& server, in_addr& ip, FS_Track *message) {
-    uint8_t OPCode = message->fs_track_getOpcode();
+    uint8_t OPCode = message->fsTrackGetOpcode();
     std::string errorDetails;
     ClientTCPSocket clientResponse = ClientTCPSocket(inet_ntoa(ip)); // TODO
     std::vector<FS_Track::PostFileBlocksData> data;
@@ -27,19 +27,19 @@ void read_data(Server& server, in_addr& ip, FS_Track *message) {
 
         // Update node
         case 1:
-            server.register_update_node(ip.s_addr, message->RegUpdateData_get_data());
+            server.registerUpdateNode(ip.s_addr, message->regUpdateDataGetData());
             break;
 
         // Get Message
         case 2:
-            data = (server.get_nodes_with_file(message->fs_track_getHash()));
-            FS_Track::send_post_message(clientResponse, message->fs_track_getHash(), data);
+            data = (server.getNodesWithFile(message->fsTrackGetHash()));
+            FS_Track::sendPostMessage(clientResponse, message->fsTrackGetHash(), data);
             break;
 
         // Post Message
         case 3:
             errorDetails = "Only a server can send a Post Message";
-            FS_Track::send_error_message(clientResponse, errorDetails);
+            FS_Track::sendErrorMessage(clientResponse, errorDetails);
             break;
 
         // Error Message
@@ -49,11 +49,11 @@ void read_data(Server& server, in_addr& ip, FS_Track *message) {
 
         // ByeBye Message
         case 5:
-            server.delete_node(ip.s_addr);
+            server.deleteNode(ip.s_addr);
             break;
         default:
             errorDetails = "Message has invalid OPCode";
-            FS_Track::send_error_message(clientResponse, errorDetails);
+            FS_Track::sendErrorMessage(clientResponse, errorDetails);
             break;
     }
 }
@@ -70,19 +70,19 @@ void serveClient(ServerTCPSocket::SocketInfo connection, Server& serverData, std
 
         if (bytes == 0) break;
 
-        message->fs_track_header_read_buffer(buffer, bytes);
+        message->fsTrackHeaderReadBuffer(buffer, bytes);
 
-        if (message->fs_track_getOpt() == 1) {
+        if (message->fsTrackGetOpt() == 1) {
             bytes = connection.receiveData(buffer, 8);
-            message->fs_track_read_hash(buffer, bytes);
+            message->fsTrackReadHash(buffer, bytes);
         }
 
-        remainBytes = message->fs_track_getSize();
+        remainBytes = message->fsTrackGetSize();
 
         while (remainBytes > 0) {
             bytes = connection.receiveData(buffer, std::min(BUFFER_SIZE, remainBytes));
 
-            message->set_data(buffer, bytes);
+            message->setData(buffer, bytes);
 
             remainBytes -= bytes;
         }
@@ -138,8 +138,8 @@ int main() {
     Server s;
     std::vector<uint32_t> josefina = {125, 225, 3, 526};
     FS_Track::RegUpdateData data = FS_Track::RegUpdateData(1240912490, josefina);
-    s.add_new_info(124152, data);
-    s.print_map();
+    s.addNewInfo(124152, data);
+    s.printMap();
     */
 
     Server server = Server();

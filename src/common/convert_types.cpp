@@ -1,6 +1,6 @@
 #include "convert_types.h"
 
-uint32_t vptr_to_uint32(void *buffer, uint32_t *idx) {
+uint32_t vptrToUint32(void *buffer, uint32_t *idx) {
     uint8_t *data = (uint8_t *) buffer;
 
     uint64_t ans = 0;
@@ -11,7 +11,7 @@ uint32_t vptr_to_uint32(void *buffer, uint32_t *idx) {
     return ans;
 }
 
-uint64_t vptr_to_uint64(void *buffer, uint32_t *idx) {
+uint64_t vptrToUint64(void *buffer, uint32_t *idx) {
     uint8_t *data = (uint8_t *) buffer;
 
     uint64_t ans = 0;
@@ -22,13 +22,13 @@ uint64_t vptr_to_uint64(void *buffer, uint32_t *idx) {
     return ans;
 }
 
-void push_uint32_into_vector_uint8(std::vector<uint8_t> *vector, uint32_t value) {
+void pushUint32IntoVectorUint8(std::vector<uint8_t> *vector, uint32_t value) {
     for (int i = 0; i < 4; ++i) {
         vector->emplace_back((value >> (i * 8)) & 0xFF);
     }
 }
 
-void push_uint64_into_vector_uint8(std::vector<uint8_t> *vector, uint64_t value) {
+void pushUint64IntoVectorUint8(std::vector<uint8_t> *vector, uint64_t value) {
     for (int i = 0; i < 8; ++i) {
         vector->emplace_back((value >> (i * 8)) & 0xFF);
     }

@@ -9,6 +9,7 @@
 #include "bounded_buffer.h"
 #include <chrono>
 #include "bitmap.h"
+#include "checksum.h"
 
 #define CLIENT_INPUT_BUFFER_SIZE 10
 #define CLIENT_OUTPUT_BUFFER_SIZE 10
@@ -46,7 +47,7 @@ struct Client {
     ~Client();
 
     // main funcs, called in constructor
-    void registerWithServer(ClientTCPSocket socket);
+    void registerWithServer();
     void initUploadLoop();
     void commandParser();
 
@@ -58,6 +59,11 @@ struct Client {
 
 	void sendInfo(const FS_Transfer_Info &info);
 
+    void regDirectory(char* directory);
+    void regFile(const char* dir, char* fn);
+
+
+
     ClientTCPSocket socketToServer;
     NodeUDPSocket udpSocket; // usamos apenas 1 socket para tudo
     std::thread readThread, writeThread, answererThread; // 1 thread loop read, 1 thread loop write, 1 thread loop responder pedidos (faz upload)
@@ -68,6 +74,7 @@ struct Client {
 
 	// sem controlo de concorrencia por agora, nao planeio usar varias threads aqui
 	std::unordered_map<uint64_t, bitMap> blocksPerFile;
+    std::unordered_map<std::string, FILE*> fileDescriptorMap;
 };
 
 #endif

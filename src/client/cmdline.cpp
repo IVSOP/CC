@@ -29,7 +29,7 @@ void fs_node_cmdParser(char *argv[]) {
         filename = input.substr(splitAt+1);
 
         if (command.compare("GET") == 0) {
-            uint64_t hash = sha3_64(filename.c_str(), filename.size()); // TODO Confirm
+            uint64_t hash = getFilenameHash((char*) filename.c_str(), filename.size()); // TODO Confirm
             // TODO Send server a get message, receive response and retrieve blocks from other nodes
             std::cout << filename << std::endl;
 

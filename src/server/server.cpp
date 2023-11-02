@@ -9,7 +9,7 @@ Server::~Server() {
     fileMap.clear();
 };
 
-void Server::add_new_info(uint32_t ip, FS_Track::RegUpdateData &newNode) {
+void Server::addNewInfo(uint32_t ip, FS_Track::RegUpdateData &newNode) {
     std::unique_lock<std::mutex> lock = std::unique_lock<std::mutex>(mtx);
 
     uint64_t hash = newNode.getFileHash();
@@ -42,7 +42,7 @@ void Server::add_new_info(uint32_t ip, FS_Track::RegUpdateData &newNode) {
 
 };
 
-void Server::print_map() {
+void Server::printMap() {
     for (const auto &kv: fileMap) {
         auto value = kv.second;
         for (const auto &pair: value) {
@@ -56,7 +56,7 @@ void Server::print_map() {
     }
 }
 
-std::vector<FS_Track::PostFileBlocksData> Server::get_nodes_with_file(uint64_t hash) {
+std::vector<FS_Track::PostFileBlocksData> Server::getNodesWithFile(uint64_t hash) {
     std::unique_lock<std::mutex> lock = std::unique_lock<std::mutex>(mtx);
     auto mapIter = fileMap.find(hash);
 
@@ -73,13 +73,13 @@ std::vector<FS_Track::PostFileBlocksData> Server::get_nodes_with_file(uint64_t h
     return ans;
 }
 
-void Server::register_update_node(uint32_t ip, std::vector<FS_Track::RegUpdateData> data){
+void Server::registerUpdateNode(uint32_t ip, std::vector<FS_Track::RegUpdateData> data){
     for(FS_Track::RegUpdateData& regData: data){
-        this->add_new_info(ip, regData);
+        this->addNewInfo(ip, regData);
     }
 }
 
-void Server::delete_node(uint32_t ip){
+void Server::deleteNode(uint32_t ip){
     std::unique_lock<std::mutex> lock = std::unique_lock<std::mutex>(mtx);
 
     for (auto & mapKeyValue : fileMap)
