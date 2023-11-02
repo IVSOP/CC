@@ -4,8 +4,8 @@ project(TP2)
 set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_CXX_STANDARD_REQUIRED true)
-													   # por causa do core, porecisa disto 
-SET(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -pedantic -pthread") # -Wno-unused-parameter -O2??? -ftree-vectorize -fopt-info-vec-missed or all or optimized
+													   # por causa do core, precisa disto
+SET(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -pedantic -pthread -std=c++17") # -Wno-unused-parameter -O2??? -ftree-vectorize -fopt-info-vec-missed or all or optimized
 #SET(GCC_COVERAGE_LINK_FLAGS "-lssl -lcrypto")    # "-lgcov"
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
@@ -23,8 +23,7 @@ add_executable(Server
         src/common/fs_track.cpp
         src/common/TCP_socket.cpp
         src/common/convert_types.cpp
-        src/common/fs_track_test.cpp
-        src/common/cmdline.cpp)
+        src/common/fs_track_test.cpp)
 
 add_executable(Node
         src/client/client.cpp
@@ -36,7 +35,7 @@ add_executable(Node
         src/common/convert_types.cpp
         src/common/UDP_socket.cpp
         src/common/fs_track_test.cpp
-        src/common/cmdline.cpp)
+        src/client/cmdline.cpp)
 
 target_include_directories(Server
         PUBLIC include/common

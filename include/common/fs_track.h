@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <vector>
 #include <string>
+#include "TCP_socket.h"
 
 #define FILENAME_SIZE 256
 #define SIZE_LENGTH 3
@@ -20,6 +21,7 @@ private:
     /**
      * Message data's current size
      */
+
     uint32_t dataSize;
 public:
     /**
@@ -185,6 +187,83 @@ public:
      * @return String with error's details
      */
     ErrorMessageData ErrorMessage_get_data();
+
+    /**
+     * Send any FS_Track to desired destiny
+     * @param ip Message destiny
+     * @param message FSTrack message
+     */
+    static void send_message(ClientTCPSocket& socket, FS_Track& message){
+        std::pair<uint8_t *, uint32_t> buf = message.FS_Track::fs_track_to_buffer();
+        socket.sendData(buf.first, buf.second);
+
+        delete [] (uint8_t*) buf.first;
+    }
+
+    /**
+     * Send register message to desired destiny
+     * @param socket Socket to send message through
+     * @param data RegUpdate data to send
+     */
+    static void send_reg_message(ClientTCPSocket& socket, std::vector<FS_Track::RegUpdateData>& data){
+        FS_Track message = FS_Track(0, false, 0);
+
+        message.RegUpdateData_set_data(data);
+
+        send_message(socket, message);
+    }
+
+    /**
+     * Send update message to desired destiny
+     * @param socket Socket to send message through
+     * @param data RegUpdate data to send
+     */
+    static void send_update_message(ClientTCPSocket& socket, std::vector<FS_Track::RegUpdateData>& data){
+        FS_Track message = FS_Track(1, false, 0);
+
+        message.RegUpdateData_set_data(data);
+
+        send_message(socket, message);
+    }
+
+    /**
+     * Send get message
+     * @param socket Socket to send message through
+     * @param hash File's hash
+     */
+    static void send_get_message(ClientTCPSocket& socket, uint64_t hash){
+        FS_Track message = FS_Track(2, true, hash);
+
+        send_message(socket, message);
+    }
+
+    /**
+     * Send post message to desired destiny
+     * @param socket Socket to send message through
+     * @param hash File's hash
+     * @param data Post data to send
+     */
+    static void send_post_message(ClientTCPSocket& socket, uint64_t hash, std::vector<FS_Track::PostFileBlocksData>& data) {
+        FS_Track message = FS_Track(3, true, hash);
+
+        message.PostFileBlocks_set_data(data);
+
+        send_message(socket, message);
+    }
+
+    /**
+     * Send error message to desired destiny
+     * @param socket Socket to send message through
+     * @param errorDetails Error details
+     */
+    static void send_error_message(ClientTCPSocket& socket, std::string& errorDetails) {
+        FS_Track message = FS_Track(4, false, 0);
+
+        message.ErrorMessage_set_data(errorDetails);
+
+        send_message(socket, message);
+    }
+
 };
 
 #endif //TP2_FS_TRACK_H

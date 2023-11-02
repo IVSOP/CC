@@ -14,36 +14,11 @@
 
 #define BUFFER_SIZE (uint32_t) 1500
 
-void send_message(in_addr ip, FS_Track& message){
-    ClientTCPSocket client = ClientTCPSocket(inet_ntoa(ip));
-
-    std::pair<uint8_t *, uint32_t> buf = message.FS_Track::fs_track_to_buffer();
-    client.sendData(buf.first, buf.second);
-
-    delete [] (uint8_t*) buf.first;
-}
-
-void send_post_message(Server& server, in_addr ip, uint64_t hash){
-    std::vector<FS_Track::PostFileBlocksData> data = server.get_nodes_with_file(hash);
-
-    FS_Track message = FS_Track(3, true, hash);
-
-    message.PostFileBlocks_set_data(data);
-
-    send_message(ip, message);
-}
-
-void send_error_message(in_addr ip, std::string& errorDetails){
-    FS_Track message = FS_Track(4, false, 0);
-
-    message.ErrorMessage_set_data(errorDetails);
-
-    send_message(ip, message);
-}
-
 void read_data(Server& server, in_addr& ip, FS_Track *message) {
     uint8_t OPCode = message->fs_track_getOpcode();
     std::string errorDetails;
+    ClientTCPSocket clientResponse = ClientTCPSocket(inet_ntoa(ip)); // TODO
+    std::vector<FS_Track::PostFileBlocksData> data;
 
     switch (OPCode) {
         // Cases 0 and 1 are the same
@@ -57,13 +32,14 @@ void read_data(Server& server, in_addr& ip, FS_Track *message) {
 
         // Get Message
         case 2:
-            send_post_message(server, ip, message->fs_track_getHash());
+            data = (server.get_nodes_with_file(message->fs_track_getHash()));
+            FS_Track::send_post_message(clientResponse, message->fs_track_getHash(), data);
             break;
 
         // Post Message
         case 3:
             errorDetails = "Only a server can send a Post Message";
-            send_error_message(ip, errorDetails);
+            FS_Track::send_error_message(clientResponse, errorDetails);
             break;
 
         // Error Message
@@ -77,7 +53,7 @@ void read_data(Server& server, in_addr& ip, FS_Track *message) {
             break;
         default:
             errorDetails = "Message has invalid OPCode";
-            send_error_message(ip, errorDetails);
+            FS_Track::send_error_message(clientResponse, errorDetails);
             break;
     }
 }
@@ -123,13 +99,13 @@ void serveClient(ServerTCPSocket::SocketInfo connection, Server& serverData, std
 }
 
 void acceptClients(Server& serverData, std::vector<ThreadRAII>& threadGraveyard, std::mutex& mtx, std::condition_variable& cdt) {
-    ServerTCPSocket serverScoket = ServerTCPSocket();
-    serverScoket.socketListen();
+    ServerTCPSocket serverSocket = ServerTCPSocket();
+    serverSocket.socketListen();
 
     ServerTCPSocket::SocketInfo new_connection;
 
     while (true) {
-        new_connection = serverScoket.acceptClient();
+        new_connection = serverSocket.acceptClient();
 
         threadGraveyard.emplace_back(std::thread(serveClient, new_connection, std::ref(serverData), std::ref(mtx), std::ref(cdt)), ThreadRAII::DtorAction::join);
     }

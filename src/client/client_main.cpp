@@ -1,7 +1,3 @@
-//
-// Created by kard on 19-10-2023.
-//
-
 #include "UDP_socket.h"
 #include "TCP_socket.h"
 #include "fs_transfer.h"
@@ -122,15 +118,26 @@ void test_fs_transfer_sendData() {
 #include "socket_common.h"
 
 int main(int argc, char *argv[]) {
-    main_cmdParser(argc, argv);
+    Client client = Client();
+
+    ClientTCPSocket socket = ClientTCPSocket("0.0.0.0");
+
+    bitMap b = bitMap();
+    b.push_back(false);
+    b.push_back(true);
+    b.push_back(true);
+    b.push_back(false);
+
+    client.blocksPerFile.insert({1, b});
+    client.registerWithServer(socket);
 
     /*
 	if (argc == 1) {
 		puts("server IP not passed as argument");
 		exit(EXIT_FAILURE);
 	}
-	char *server_ip = argv[1];	
 
+	char *server_ip = argv[1];
 	Client client(server_ip);
 
 	char c;

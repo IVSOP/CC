@@ -1,4 +1,5 @@
 #include "client.h"
+#include "fs_track.h"
 
 #define SERVER_IP "0.0.0.0"
 
@@ -87,4 +88,20 @@ void Client::initUploadLoop() {
 
 void Client::commandParser() {
 
+}
+
+void Client::registerWithServer(ClientTCPSocket socket){
+    std::vector<FS_Track::RegUpdateData> data = std::vector<FS_Track::RegUpdateData>();
+    std::vector<uint32_t> blocks = std::vector<uint32_t>();
+
+    for(const auto& pair: this->blocksPerFile){
+        blocks.clear();
+        for (uint32_t i = 0; i < pair.second.size(); i++){
+            if(pair.second.at(i)) blocks.emplace_back(i);
+        }
+
+        data.emplace_back(pair.first, blocks);
+    }
+
+    FS_Track::send_reg_message(socket, data);
 }

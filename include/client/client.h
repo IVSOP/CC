@@ -46,7 +46,7 @@ struct Client {
     ~Client();
 
     // main funcs, called in constructor
-    void registerWithServer();
+    void registerWithServer(ClientTCPSocket socket);
     void initUploadLoop();
     void commandParser();
 
