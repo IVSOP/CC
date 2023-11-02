@@ -7,18 +7,14 @@ FS_Transfer_Packet::FS_Transfer_Packet() = default;
 
 FS_Transfer_Packet::FS_Transfer_Packet(uint8_t opc, uint64_t id, const BlockRequestData *data, uint32_t size) {
     this->setOpcode(opc);
-    this->setSize(size);
     this->setId(id);
     this->setData(data, size);
-    this->checksum = FS_Transfer_Packet::calculateChecksum();
 }
 
 FS_Transfer_Packet::FS_Transfer_Packet(uint8_t opc, uint64_t id, const BlockSendData *data, uint32_t size) {
     this->setOpcode(opc);
-    this->setSize(size);
     this->setId(id);
     this->setData(data, size);
-    this->checksum = FS_Transfer_Packet::calculateChecksum();
 }
 
 FS_Transfer_Packet::~FS_Transfer_Packet() = default;
@@ -46,20 +42,22 @@ void FS_Transfer_Packet::setOpcode(uint8_t opc) {
 
 void FS_Transfer_Packet::setSize(uint32_t size) {
     this->opc_size = (this->opc_size & 0xC0000000) | (size & 0x3FFFFFFF);
-};
+}
 
 void FS_Transfer_Packet::setId(uint64_t id) {
     this->id = id;
-};
+}
 
 //já atualiza size e checksum
 void FS_Transfer_Packet::setData(const void *data, ssize_t size) {
     memcpy(static_cast <void *> (&this->data), data, size);
     this->setSize(size);
     this->checksum = FS_Transfer_Packet::calculateChecksum();
-};
+}
 
 //blockSendData
+
+BlockSendData::BlockSendData() = default;
 
 BlockSendData::BlockSendData(uint32_t blockID, const char *data, ssize_t size) {
     this->setId(blockID);

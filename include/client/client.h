@@ -1,21 +1,19 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
+#include <unordered_map>
+#include <thread>
+#include <chrono>
+#include <fstream>
 #include "TCP_socket.h"
 #include "UDP_socket.h"
 #include "fs_transfer.h"
-#include <unordered_map>
-#include <thread>
 #include "bounded_buffer.h"
-#include <chrono>
 #include "bitmap.h"
 #include "checksum.h"
 
 #define CLIENT_INPUT_BUFFER_SIZE 10
 #define CLIENT_OUTPUT_BUFFER_SIZE 10
-
-// TEMPORARIO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-typedef int timestamp_t;
 
 // struct para que as threads possam trabalhar sobre os dados recebidos
 struct FS_Transfer_Info {
@@ -26,9 +24,18 @@ struct FS_Transfer_Info {
 		addr.sin_family = AF_INET;
 		addr.sin_port = htons(UDP_PORT);
 	}
-    timestamp_t timestamp;
+    time_t timestamp;
     struct sockaddr_in addr;
     FS_Transfer_Packet packet;
+
+    constexpr const FS_Transfer_Packet& getTransferPacket() const {
+        return packet;
+    }
+
+    void setTimestamp(time_t& timsestamp);
+    void setAdrr(struct sockaddr_in&) const;
+    void setPacket(const FS_Transfer_Packet *, ssize_t size);
+
 };
 
 
@@ -41,6 +48,8 @@ struct FS_Transfer_Info {
 
 struct Client {
 
+    //using FS_Transfer_Packet_handler = void (Client::*) (FS_Transfer_Packet&); //typedef para as funções da dispatch table
+
     Client();
 	Client(const std::string &IPv4); // para set do server IP
 
@@ -50,6 +59,7 @@ struct Client {
     void registerWithServer();
     void initUploadLoop();
     void commandParser();
+    void assignDispatchTable();
 
     void readLoop();
     void writeLoop();
@@ -57,7 +67,15 @@ struct Client {
     void sendRequest();
 	void answerRequestsLoop();
 
-	void sendInfo(const FS_Transfer_Info &info);
+	void sendInfo(FS_Transfer_Info &info);
+
+    //parse opcode funcs
+    void ReqBlockData(FS_Transfer_Packet& packet);
+    void RespondBlockData(FS_Transfer_Packet& packet);
+
+    ssize_t getFileBlock(const std::string& filename, uint32_t blockID, char * buffer);
+    void writeFileBlock(const std::string& filename, uint32_t blockN, char * buffer, ssize_t size);
+
 
     void regDirectory(char* directory);
     void regFile(const char* dir, char* fn);
@@ -76,5 +94,14 @@ struct Client {
 	std::unordered_map<uint64_t, bitMap> blocksPerFile;
     std::unordered_map<std::string, FILE*> fileDescriptorMap;
 };
+
+    //dispatch table
+    std::unordered_map<uint8_t,void (Client::*) (FS_Transfer_Packet&)> dispatchTable;
+
+    //inicializados só uma vez, alterados com o decorrer
+    FS_Transfer_Info dataFinal;
+    FS_Transfer_Packet dataPacket;
+    BlockSendData blockSend;
+    };
 
 #endif

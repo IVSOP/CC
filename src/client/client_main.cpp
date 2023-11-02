@@ -50,7 +50,7 @@ void test_fs_transfer_fields() {
     FS_Transfer_Packet *packet = new FS_Transfer_Packet(2, 524, blocks, 10 * sizeof(uint32_t));
 
     //testar campos do pacote
-    printf("packet opcode: %d, size: %d, hash: %lu, checksum: %d, data: ", packet->getOpcode(), packet->getSize(),
+    printf("packet opcode: %d, size: %d, hash: %llu, checksum: %d, data: ", packet->getOpcode(), packet->getSize(),
            packet->getId(), packet->getChecksum());
 
     uint32_t *testBlockIds = static_cast<BlockRequestData *> (packet->getData())->getData();
@@ -70,7 +70,7 @@ void test_fs_transfer_fields() {
     // setData já atualiza checksum e size
 
     //testar campos
-    printf("packet opcode: %d, size: %d, hash: %lu checksum: %d, data: ", packet->getOpcode(), packet->getSize(),
+    printf("packet opcode: %d, size: %d, hash: %llu checksum: %d, data: ", packet->getOpcode(), packet->getSize(),
            packet->getId(), packet->getChecksum());
 
     char *blockData = static_cast<BlockSendData *> (packet->getData())->getData();
@@ -130,7 +130,42 @@ int main(int argc, char *argv[]) {
 
     printf("Acabou\n");
     /*
+    client.blocksPerFile.insert({1, b});
+    client.registerWithServer(socket);
+     */
+}
 
+void test_file_write_block() {
+    Client c;
+    //uint32_t blockID[] = {0,1,2};
+    uint32_t blockID[] = {5};
+    BlockRequestData block = BlockRequestData(blockID,sizeof(blockID));
+    FS_Transfer_Packet packet = FS_Transfer_Packet(0,1258284,&block,sizeof(blockID));
+    FS_Transfer_Info info;
+    info.packet = packet;
+    c.ReqBlockData(packet);
+
+    printf("mimir");
+    sleep(1000);
+
+}
+
+void test_file_read_block() {
+    Client c;
+    char teste[] = "Shiban é mau pastor, não é como o nestor, as threads andam sem motor";
+    BlockSendData block = BlockSendData(5,teste,sizeof(teste)+ sizeof(uint32_t));
+    FS_Transfer_Packet packet = FS_Transfer_Packet(1,1258284,&block,sizeof(teste) + sizeof(uint32_t));
+    FS_Transfer_Info info;
+    info.packet = packet;
+    c.RespondBlockData(packet);
+
+    printf("mimir");
+    sleep(1000);
+}
+
+int nadaaver(int argc, char *argv[]) {
+
+    /*
 	if (argc == 1) {
 		puts("server IP not passed as argument");
 		exit(EXIT_FAILURE);
@@ -188,7 +223,7 @@ int main(int argc, char *argv[]) {
 
     data = new FS_Track(1, true, 124);
 
-    setRegUpdateData(data);
+    set_RegUpdateData(data);
 
     buf = data->FS_Track::fs_track_to_buffer();
 
@@ -218,7 +253,7 @@ int main(int argc, char *argv[]) {
 
     data = new FS_Track(3, true, 150);
 
-    setPostFileBlocks(data);
+    set_PostFileBlocks(data);
 
     buf = data->FS_Track::fs_track_to_buffer();
 
@@ -234,7 +269,7 @@ int main(int argc, char *argv[]) {
 
     data = new FS_Track(4, false, 200);
 
-    setErrorMessage(data);
+    set_ErrorMessage(data);
 
     buf = data->FS_Track::fs_track_to_buffer();
 
@@ -250,7 +285,7 @@ int main(int argc, char *argv[]) {
 
     data = new FS_Track(5, false, 0);
 
-    buf = data->FS_Track::fsTrackToBuffer();
+    buf = data->FS_Track::fs_track_to_buffer();
 
     std::cout << buf.second << std::endl;
 
