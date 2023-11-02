@@ -9,6 +9,7 @@
 #include "fs_track_test.h"
 #include <checksum.h>
 #include "client.h"
+#include "cmdline.h"
 
 
 void test_udp() {
@@ -121,6 +122,8 @@ void test_fs_transfer_sendData() {
 #include "socket_common.h"
 
 int main(int argc, char *argv[]) {
+    main_cmdParser(argc, argv);
+
     /*
 	if (argc == 1) {
 		puts("server IP not passed as argument");
@@ -154,8 +157,9 @@ int main(int argc, char *argv[]) {
 			}
 		}
 	}
-
     */
+
+    /*
     ClientTCPSocket client = ClientTCPSocket("0.0.0.0");
     FS_Track* data = nullptr;
     std::pair<uint8_t *, uint32_t> buf;
@@ -251,4 +255,5 @@ int main(int argc, char *argv[]) {
     delete data;
 
     return 0;
+    */
 }

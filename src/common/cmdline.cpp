@@ -1,6 +1,9 @@
 #include <cstring>
 #include <iostream>
 #include <cctype>
+#include <vector>
+#include <string>
+#include <sstream>
 #include "cmdline.h"
 
 // parser dentro de fs_tracker
@@ -12,34 +15,38 @@ void fs_tracker_cmdParser(char *port) {
 //parser dentro de fs_node
 void fs_node_cmdParser(char *argv[]) {
     printf("FS_Node\n");
-    char input[MAX_INPUT_LEN];
-    char *curr = input;
-    char *folder = argv[0];
-    char *ip = argv[1];
-    char *port = argv[2];
-    printf("%s, %s, %s\n", folder, ip, port);
+    std::string input;
+    std::string command;
+    std::string filename;
 
     while (true) {
-        //Get input
-        std::cin.getline(input, MAX_INPUT_LEN);
-        input[strcspn(input, "\n")] = '\0';
-        strsep(&curr, " ");
-        if (!strcmp(input, "exit")) {
-            break;
-        } else if (!strcmp(input, "GET")) {
-            printf("%s\n", curr);
+        getline(std::cin,input);
+
+        if(input.size() == 0) break;
+
+        size_t splitAt = input.find(' ');
+
+        command = input.substr(0, splitAt);
+
+        filename = input.substr(splitAt+1);
+
+        if (command.compare("GET") == 0) {
+            // TODO Send server a get message, receive response and retrive blocks from other nodes
+            std::cout << filename << std::endl;
+
             // download
         } else {
             printf("Invalid command\n");
         }
-        curr = input;
     }
+
+    printf("Acabou, nao tem mais jeito.\n");
 }
 
 //recebe os dados diretos do main
 //encaminha para fs_tracker ou fs_node
 int main_cmdParser(int argc, char *argv[]) {
-    if (argc < 1) {
+    if (argc < 2) {
         printf("must run one of: \n FS_Tracker \n; FS_Node <folder> ip port\n");
         return -1;
     }
