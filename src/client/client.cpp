@@ -1,21 +1,30 @@
 #include "client.h"
 #include "fs_track.h"
 
-#define SERVER_IP "0.0.0.0"
+#define SERVER_IP "127.0.0.1"
+
+
+void FS_Transfer_Info::setPacket(const FS_Transfer_Packet * packet, ssize_t size) {
+	memcpy(static_cast <void *> (&this->packet),packet,size);
+	//fazer mais nada aqui??
+}
+
 
 Client::Client() // por default sockets aceitam tudo
-: socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile()
+: socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), dispatchTable()
 {
     // register
     initUploadLoop();
+	assignDispatchTable();
     commandParser();
 }
 
 Client::Client(const std::string &IPv4)
-: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile()
+: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), dispatchTable()
 {
     // register
     initUploadLoop();
+	assignDispatchTable();
     commandParser();
 }
 
@@ -24,7 +33,7 @@ Client::~Client() {
 }
 
 void printPacket(FS_Transfer_Info& info) {
-	printf("checksum:%u (it is %s), opc: %u size: %u id: %lu\ndata as string: %s\n", info.packet.checksum,
+	printf("checksum:%u (it is %s), opc: %u size: %u id: %llu\ndata as string: %s\n", info.packet.checksum,
 		info.packet.calculateChecksum() == info.packet.checksum ? "correct" : "wrong",
 		info.packet.getOpcode(), info.packet.getSize(), info.packet.id, reinterpret_cast<char *>(&info.packet.data));
 }
@@ -37,6 +46,7 @@ void Client::readLoop() {
 	while (true) {
 		udpSocket.receiveData(&info.packet, FS_TRANSFER_PACKET_SIZE, &info.addr);
 		// falta timestamp!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		std::time(&info.timestamp); // acho que isto funcemina?
 		inputBuffer.push(info);
 
 		puts("packet received");
@@ -60,15 +70,27 @@ void Client::writeLoop() {
 // loops trying to answer a request
 void Client::answerRequestsLoop() {
 	FS_Transfer_Info info;
+	FS_Transfer_Packet data;
 	while (true) {
 		info = inputBuffer.pop();
-
-		// do work.......
-		printPacket(info);
+		data = info.packet;
+		uint8_t opcode = data.getOpcode();
+		if (opcode <= 1) {
+			(this->*dispatchTable[opcode])(data); // assign data to function with respective opcode
+		} else {
+			perror("No handler found for packet Opcode");
+			return;
+		}
+		//tirei temporariamente
+		//printPacket(info);
 	}
 }
 
-void Client::sendInfo(const FS_Transfer_Info &info) {
+//voltar a meter const FS_Transfer_Info depois. Tirei para testes
+void Client::sendInfo(FS_Transfer_Info &info) {
+	BlockSendData * block = static_cast<BlockSendData *> (info.packet.getData());
+	block->data[(info.packet.getSize() - 4)] = '\0';
+	printf("BlockID: %d data: %s\n",block->blockID,block->data);
 	outputBuffer.push(info);
 }
 
@@ -105,3 +127,93 @@ void Client::registerWithServer(ClientTCPSocket socket){
 
     FS_Track::send_reg_message(socket, data);
 }
+//parse requests
+
+void Client::assignDispatchTable() {
+	dispatchTable[0] = &Client::ReqBlockData;
+	dispatchTable[1] = &Client::RespondBlockData;
+}
+
+
+// preenche buffer dado com bloco de ficheiro, devolve size preenchido
+// error checking para bloco não existir?
+ssize_t Client::getFileBlock(const std::string& filename, uint32_t blockN, char * buffer) {
+	std::ifstream file(filename, std::ios::binary);
+	if (file) {
+		file.seekg(blockN * BLOCK_SIZE);
+		file.read(buffer,BLOCK_SIZE);
+		if (file.gcount() == 0) {
+			perror("Error seeking block pos");
+			return -2;
+		}
+		return file.gcount();
+	}
+	else {
+		perror("File not found");
+		return -1;
+	}
+}
+
+// write new block to file
+void Client::writeFileBlock(const std::string& filename, uint32_t blockN, char * buffer, ssize_t size) {
+	std::fstream file(filename, std::ios::in | std::ios::out | std::ios::binary);
+	std::vector<char> empty_block(BLOCK_SIZE, 0);
+	if (!file) { //se deu erro ao criar
+		perror("Error creating file to receive given blocks");
+		return;
+	}
+	// calcular bloco máx atual
+	file.seekg(0,std::ios::end);
+	uint32_t total_blocks = static_cast<uint32_t> (file.tellg());
+	if ((total_blocks / BLOCK_SIZE) % BLOCK_SIZE != 0) { // extremamente ineficiente, mudar depois !!! forma rápida de calcular max block
+		total_blocks++; 
+	}
+	//preencher com espaço branco até chegar ao bloco pretendido
+	for (uint32_t i=total_blocks;i<blockN;i++) {
+		file.write(empty_block.data(),BLOCK_SIZE);
+	}
+
+	file.seekg(blockN * BLOCK_SIZE);
+	file.write(buffer,size);
+	file.close();
+}
+
+//interpret block requests
+void Client::ReqBlockData(FS_Transfer_Packet& packet) {
+	printf("entrou no req\n");
+	uint32_t reqSize = packet.getSize() / sizeof(uint32_t); // número de blocos
+	ssize_t dataSize;
+	uint32_t * blocks = static_cast <BlockRequestData *> (packet.getData())->getData();
+	char blockData[BLOCK_SIZE];
+	std::string filename = "/Users/peters/Desktop/CC_TP2/teste.txt";
+	for (uint32_t i = 0; i < reqSize; i++) {
+		printf("processing block: %d\n", blocks[i]);
+		//obter bloco de ficheiro
+
+		// TODO: filename = packet.getId()
+		dataSize = getFileBlock(filename,blocks[i],blockData);
+		if (dataSize < 0) continue; // se não for encontrado esse bloco do ficheiro, salta para o próximo e ignora
+		//Construir fs_transfer_packet
+		blockSend.setData(blockData,dataSize); //copia duas vezes os dados ??
+		blockSend.setId(blocks[i]);
+		dataPacket.setId(packet.getId());
+		dataPacket.setOpcode(1);
+		dataPacket.setData(static_cast <void*> (&blockSend),sizeof(uint32_t) + dataSize); //setData já altera o size
+
+		//dataFinal.addr = ???
+		dataFinal.packet = dataPacket;
+
+		Client::sendInfo(dataFinal);
+	}
+}
+
+//receive block data (previously requested)
+void Client::RespondBlockData(FS_Transfer_Packet& packet) {
+	printf("entrou no respond\n");
+	std::string filename = "/Users/peters/Desktop/CC_TP2/teste.txt";
+	BlockSendData * blockData = static_cast<BlockSendData *>(packet.getData());
+	// TODO: filename = getFilename(packet.getId())
+	writeFileBlock(filename,blockData->getId(),blockData->getData(),packet.getSize() - sizeof(uint32_t));
+	// TODO: write to blocksPerFile new block
+}
+

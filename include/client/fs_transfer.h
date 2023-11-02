@@ -20,6 +20,7 @@ struct BlockSendData {
     uint32_t blockID;
     char data[BLOCK_SIZE];
 
+    BlockSendData();
     BlockSendData(uint32_t block, const char *data, ssize_t size); //char data[BLOCK_SIZE]);
 
     constexpr uint32_t getId() const {
