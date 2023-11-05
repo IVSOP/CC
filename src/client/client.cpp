@@ -33,7 +33,7 @@ Client::~Client() {
 }
 
 void printPacket(FS_Transfer_Info& info) {
-	printf("checksum:%u (it is %s), opc: %u size: %u id: %llu\ndata as string: %s\n", info.packet.checksum,
+	printf("checksum:%u (it is %s), opc: %u size: %u id: %lu\ndata as string: %s\n", info.packet.checksum,
 		info.packet.calculateChecksum() == info.packet.checksum ? "correct" : "wrong",
 		info.packet.getOpcode(), info.packet.getSize(), info.packet.id, reinterpret_cast<char *>(&info.packet.data));
 }
@@ -74,15 +74,20 @@ void Client::answerRequestsLoop() {
 	while (true) {
 		info = inputBuffer.pop();
 		data = info.packet;
-		uint8_t opcode = data.getOpcode();
-		if (opcode <= 1) {
-			(this->*dispatchTable[opcode])(data); // assign data to function with respective opcode
+
+		if (data.checkErrors() == false) { // se houver erro nao faz sentido estar a ler o opcode, check tem de ser feito aqui
+			wrongChecksum(info);
 		} else {
-			perror("No handler found for packet Opcode");
-			return;
+			uint8_t opcode = data.getOpcode();
+			if (opcode <= 1) {
+				(this->*dispatchTable[opcode])(data); // assign data to function with respective opcode
+			} else {
+				perror("No handler found for packet Opcode");
+				return;
+			}
+			//tirei temporariamente
+			//printPacket(info);
 		}
-		//tirei temporariamente
-		//printPacket(info);
 	}
 }
 
