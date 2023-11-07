@@ -10,9 +10,9 @@ void setRegUpdateData(FS_Track *data) {
     std::vector<FS_Track::RegUpdateData> dados = std::vector<FS_Track::RegUpdateData>();
 
     for (int i = 0; i < 5; i++) {
-        std::vector<uint32_t> blocks = std::vector<uint32_t>();
+        bitMap blocks = bitMap();
 
-        for (int j = 1; j <= (2 * i) + 1; j++) blocks.emplace_back(j);
+        for (int j = 1; j <= (2 * i) + 1; j++) blocks.emplace_back(j % 2 == 0);
 
         dados.emplace_back(i, blocks);
     }
@@ -45,10 +45,10 @@ void setPostFileBlocks(FS_Track *data) {
         struct in_addr ip;
         ip.s_addr = i;
 
-        std::vector<uint32_t> blocks = std::vector<uint32_t>();
+        bitMap blocks = bitMap();
 
         for (uint32_t j = 0; j < 2 * i + 1; j++) {
-            blocks.emplace_back(j);
+            blocks.emplace_back(j % 2 == 0);
         }
 
         dados.emplace_back(ip, blocks);

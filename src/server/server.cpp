@@ -2,7 +2,7 @@
 
 
 Server::Server() : mtx(std::mutex()){
-    fileMap = std::unordered_map<uint64_t, std::vector<std::pair<uint32_t, std::vector<uint32_t> > > >();
+    fileMap = std::unordered_map<uint64_t, std::vector<std::pair<uint32_t, bitMap > > >();
 };
 
 Server::~Server() {
@@ -13,15 +13,15 @@ void Server::addNewInfo(uint32_t ip, FS_Track::RegUpdateData &newNode) {
     std::unique_lock<std::mutex> lock = std::unique_lock<std::mutex>(mtx);
 
     uint64_t hash = newNode.getFileHash();
-    std::vector<uint32_t> receivedBlocks = newNode.getBlockNumbers(); // vetor copiado com blocos novos
+    bitMap receivedBlocks = newNode.getBlockNumbers(); // vetor copiado com blocos novos
 
     if (fileMap.find(hash) == fileMap.end()) { // procurar se hash do ficheiro já existe
-        std::vector<std::pair<uint32_t, std::vector<uint32_t>>> fileVector = std::vector<std::pair<uint32_t, std::vector<uint32_t>>>();
+        std::vector<std::pair<uint32_t, bitMap>> fileVector = std::vector<std::pair<uint32_t, bitMap>>();
         fileMap.insert({hash, fileVector});
     }
 
     auto mapIter = fileMap.find(hash);
-    std::pair<uint32_t, std::vector<uint32_t>> iterPair;
+    std::pair<uint32_t, bitMap> iterPair;
     bool found = false;
 
     for (const auto &pair: mapIter->second) { // procurar se nodo já tem blocos desse ficheiro
@@ -33,9 +33,14 @@ void Server::addNewInfo(uint32_t ip, FS_Track::RegUpdateData &newNode) {
     }
 
     if (found) { // se já existiam blocos do ficheiro
-        std::vector<uint32_t> nodeBlocks = iterPair.second;
-        nodeBlocks.insert(nodeBlocks.end(), receivedBlocks.begin(),
-                          receivedBlocks.end()); // meter novos blocos no vector
+        bitMap nodeBlocks = iterPair.second;
+        uint32_t size = nodeBlocks.size();
+
+        // Update bitMap
+        for(uint32_t i = 0; i < receivedBlocks.size(); i++){
+            bool prev = i < size && nodeBlocks.at(i);
+            nodeBlocks.insert(receivedBlocks.begin() + i, prev || receivedBlocks.at(i));
+        }
     } else { // se ainda não exista par (nodo, blocos do ficheiro)
         (mapIter->second).emplace_back(ip, receivedBlocks); // criar novo par (nodo, blocos do ficheiro)
     }

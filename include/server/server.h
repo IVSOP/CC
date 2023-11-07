@@ -29,7 +29,7 @@ public:
     void deleteNode(uint32_t ip);
 
 private:
-    std::unordered_map<uint64_t, std::vector<std::pair<uint32_t, std::vector<uint32_t>>>> fileMap;
+    std::unordered_map<uint64_t, std::vector<std::pair<uint32_t, bitMap>>> fileMap;
     std::mutex mtx;
 };
 

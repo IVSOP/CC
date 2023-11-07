@@ -1,5 +1,8 @@
 #include "client.h"
 #include "fs_track.h"
+#include <dirent.h>
+#include "errors.h"
+#include <sys/stat.h> // TODO
 
 #define SERVER_IP "0.0.0.0"
 #define FILENAME_BUFFER_SIZE 300
@@ -113,21 +116,14 @@ void Client::commandParser() {
 
 void Client::registerWithServer(){
     std::vector<FS_Track::RegUpdateData> data = std::vector<FS_Track::RegUpdateData>();
-    std::vector<uint32_t> blocks = std::vector<uint32_t>();
-
     for(const auto& pair: this->blocksPerFile){
-        blocks.clear();
-        for (uint32_t i = 0; i < pair.second.size(); i++){
-            if(pair.second.at(i)) blocks.emplace_back(i);
-        }
 
-        data.emplace_back(pair.first, blocks);
+        data.emplace_back(pair.first, pair.second);
     }
 
 	FS_Track::sendRegMessage(this->socketToServer, data);
 }
 
-/* Code from https://stackoverflow.com/questions/612097/how-can-i-get-the-list-of-files-in-a-directory-using-c-or-c */
 void Client::regDirectory(char* dirPath){
     std::string directory = std::string(dirPath);
 

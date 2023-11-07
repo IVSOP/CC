@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <vector>
+#include "bitmap.h"
 
 /**
  * Reads data from a buffer and converts it to an uint32_t
@@ -33,5 +34,9 @@ void pushUint32IntoVectorUint8(std::vector<uint8_t> *vector, uint32_t value);
  * @param value uint64_t value
  */
 void pushUint64IntoVectorUint8(std::vector<uint8_t> *vector, uint64_t value);
+
+void bitmap_serialize(std::vector<uint8_t> *vector, bitMap bit_map, uint32_t total_bits, uint8_t significant_bits);
+
+bitMap bitmap_deserialize(uint8_t *vector, uint32_t* idx, uint32_t total_bytes, uint8_t significant_bits);
 
 #endif //TP2_CONVERT_TYPES_H

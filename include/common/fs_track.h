@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 #include "TCP_socket.h"
+#include "bitmap.h"
 
 #define FILENAME_SIZE 256
 #define SIZE_LENGTH 3
@@ -47,15 +48,15 @@ public:
      */
     struct RegUpdateData {
         uint64_t file_hash;
-        std::vector<uint32_t> block_numbers;
+        bitMap block_numbers;
 
-        RegUpdateData(uint64_t, std::vector<uint32_t>);
+        RegUpdateData(uint64_t, bitMap);
 
         ~RegUpdateData();
 
         uint64_t getFileHash();
 
-        std::vector<uint32_t> getBlockNumbers(); //faz deep copy
+        bitMap getBlockNumbers(); //faz deep copy
     };
 
     /**
@@ -63,9 +64,9 @@ public:
      */
     struct PostFileBlocksData {
         struct in_addr ip;
-        std::vector<uint32_t> block_numbers;
+        bitMap block_numbers;
 
-        PostFileBlocksData(struct in_addr, std::vector<uint32_t>);
+        PostFileBlocksData(struct in_addr, bitMap);
 
         ~PostFileBlocksData();
     };

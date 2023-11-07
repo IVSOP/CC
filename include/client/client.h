@@ -97,7 +97,6 @@ struct Client {
 	// sem controlo de concorrencia por agora, nao planeio usar varias threads aqui
 	std::unordered_map<uint64_t, bitMap> blocksPerFile;
     std::unordered_map<std::string, FILE*> fileDescriptorMap;
-};
 
     //dispatch table
     std::unordered_map<uint8_t,void (Client::*) (FS_Transfer_Packet&)> dispatchTable;
@@ -106,6 +105,6 @@ struct Client {
     FS_Transfer_Info dataFinal;
     FS_Transfer_Packet dataPacket;
     BlockSendData blockSend;
-    };
+};
 
 #endif

@@ -117,24 +117,6 @@ void test_fs_transfer_sendData() {
 // 	}
 // }
 
-int main(int argc, char *argv[]) {
-    if(argc != 2){
-        print_error("Not enough arguments");
-        return -1;
-    }
-
-    Client client = Client();
-    client.regDirectory(argv[1]);
-
-    client.registerWithServer();
-
-    printf("Acabou\n");
-    /*
-    client.blocksPerFile.insert({1, b});
-    client.registerWithServer(socket);
-     */
-}
-
 void test_file_write_block() {
     Client c;
     //uint32_t blockID[] = {0,1,2};
@@ -200,16 +182,15 @@ int nadaaver(int argc, char *argv[]) {
 	}
     */
 
-    /*
     ClientTCPSocket client = ClientTCPSocket("0.0.0.0");
     FS_Track* data = nullptr;
     std::pair<uint8_t *, uint32_t> buf;
 
     data = new FS_Track(0, false, 82);
 
-    set_RegUpdateData(data);
+    setRegUpdateData(data);
 
-    buf = data->FS_Track::fs_track_to_buffer();
+    buf = data->FS_Track::fsTrackToBuffer();
 
     std::cout << buf.second << std::endl;
 
@@ -223,9 +204,9 @@ int nadaaver(int argc, char *argv[]) {
 
     data = new FS_Track(1, true, 124);
 
-    set_RegUpdateData(data);
+    setRegUpdateData(data);
 
-    buf = data->FS_Track::fs_track_to_buffer();
+    buf = data->FS_Track::fsTrackToBuffer();
 
     std::cout << buf.second << std::endl;
 
@@ -239,7 +220,7 @@ int nadaaver(int argc, char *argv[]) {
 
     data = new FS_Track(2, true, 1);
 
-    buf = data->FS_Track::fs_track_to_buffer();
+    buf = data->FS_Track::fsTrackToBuffer();
 
     std::cout << buf.second << std::endl;
 
@@ -253,9 +234,9 @@ int nadaaver(int argc, char *argv[]) {
 
     data = new FS_Track(3, true, 150);
 
-    set_PostFileBlocks(data);
+    setPostFileBlocks(data);
 
-    buf = data->FS_Track::fs_track_to_buffer();
+    buf = data->FS_Track::fsTrackToBuffer();
 
     std::cout << buf.second << std::endl;
 
@@ -269,9 +250,9 @@ int nadaaver(int argc, char *argv[]) {
 
     data = new FS_Track(4, false, 200);
 
-    set_ErrorMessage(data);
+    setErrorMessage(data);
 
-    buf = data->FS_Track::fs_track_to_buffer();
+    buf = data->FS_Track::fsTrackToBuffer();
 
     std::cout << buf.second << std::endl;
 
@@ -285,7 +266,7 @@ int nadaaver(int argc, char *argv[]) {
 
     data = new FS_Track(5, false, 0);
 
-    buf = data->FS_Track::fs_track_to_buffer();
+    buf = data->FS_Track::fsTrackToBuffer();
 
     std::cout << buf.second << std::endl;
 
@@ -296,5 +277,23 @@ int nadaaver(int argc, char *argv[]) {
     delete data;
 
     return 0;
-    */
+}
+
+int main(int argc, char *argv[]) {
+    /*
+    if(argc != 2){
+        print_error("Not enough arguments");
+        return -1;
+    }
+
+    Client client = Client();
+    client.regDirectory(argv[1]);
+
+    client.registerWithServer();
+
+    printf("Acabou\n");
+    client.blocksPerFile.insert({1, b});
+    client.registerWithServer(socket);
+     */
+    nadaaver(argc, argv);
 }
