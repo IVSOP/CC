@@ -76,6 +76,10 @@ struct Client {
     ssize_t getFileBlock(const std::string& filename, uint32_t blockID, char * buffer);
     void writeFileBlock(const std::string& filename, uint32_t blockN, char * buffer, ssize_t size);
 
+	void wrongChecksum(const FS_Transfer_Info &info) {
+		// ....................
+	}
+
 
     void regDirectory(char* directory);
     void regFile(const char* dir, char* fn);
