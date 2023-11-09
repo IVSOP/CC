@@ -1,7 +1,7 @@
 #include "server.h"
 
 
-Server::Server() : mtx(std::mutex()){
+Server::Server() : mtx(){
     fileMap = std::unordered_map<uint64_t, std::vector<std::pair<uint32_t, bitMap > > >();
 };
 

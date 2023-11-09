@@ -111,7 +111,30 @@ void Client::initUploadLoop() {
 }
 
 void Client::commandParser() {
+	std::string input;
+    std::string command;
+    std::string filename;
 
+	while (true) {
+        getline(std::cin,input);
+
+        if(input.empty()) break;
+
+        size_t splitAt = input.find(' ');
+
+        command = input.substr(0, splitAt);
+
+        filename = input.substr(splitAt+1);
+
+        if (command.compare("GET") == 0) {
+            uint64_t hash = getFilenameHash((char*) filename.c_str(), filename.size());
+
+			FS_Track::sendGetMessage(this->socketToServer, hash);
+
+        } else {
+            printf("Invalid command\n");
+        }
+    }
 }
 
 void Client::registerWithServer(){

@@ -96,7 +96,7 @@ void testCommunication(void set(FS_Track *), void get(FS_Track *)) {
     ClientTCPSocket client = ClientTCPSocket(inet_ntoa(server.addr.sin_addr));
 
     if (fork() == 0) { // client
-        auto *data = new FS_Track(1, false, 82);
+        auto *data = new FS_Track(1);
 
         set(data);
 

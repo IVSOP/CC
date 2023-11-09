@@ -186,7 +186,7 @@ int nadaaver(int argc, char *argv[]) {
     FS_Track* data = nullptr;
     std::pair<uint8_t *, uint32_t> buf;
 
-    data = new FS_Track(0, false, 82);
+    data = new FS_Track(0);
 
     setRegUpdateData(data);
 
@@ -202,7 +202,7 @@ int nadaaver(int argc, char *argv[]) {
 
     delete data;
 
-    data = new FS_Track(1, true, 124);
+    data = new FS_Track(1);
 
     setRegUpdateData(data);
 
@@ -218,7 +218,7 @@ int nadaaver(int argc, char *argv[]) {
 
     delete data;
 
-    data = new FS_Track(2, true, 1);
+    data = new FS_Track(2, 1);
 
     buf = data->FS_Track::fsTrackToBuffer();
 
@@ -232,7 +232,7 @@ int nadaaver(int argc, char *argv[]) {
 
     delete data;
 
-    data = new FS_Track(3, true, 150);
+    data = new FS_Track(3, 150);
 
     setPostFileBlocks(data);
 
@@ -248,7 +248,7 @@ int nadaaver(int argc, char *argv[]) {
 
     delete data;
 
-    data = new FS_Track(4, false, 200);
+    data = new FS_Track(4);
 
     setErrorMessage(data);
 
@@ -264,7 +264,7 @@ int nadaaver(int argc, char *argv[]) {
 
     delete data;
 
-    data = new FS_Track(5, false, 0);
+    data = new FS_Track(5);
 
     buf = data->FS_Track::fsTrackToBuffer();
 
@@ -292,8 +292,6 @@ int main(int argc, char *argv[]) {
     client.registerWithServer();
 
     printf("Acabou\n");
-    client.blocksPerFile.insert({1, b});
-    client.registerWithServer(socket);
      */
     nadaaver(argc, argv);
 }

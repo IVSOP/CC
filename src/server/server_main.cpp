@@ -14,8 +14,8 @@
 
 #define BUFFER_SIZE (uint32_t) 1500
 
-void read_data(Server& server, in_addr& ip, FS_Track *message) {
-    uint8_t OPCode = message->fsTrackGetOpcode();
+void read_data(Server& server, in_addr& ip, FS_Track message) {
+    uint8_t OPCode = message.fsTrackGetOpcode();
     std::string errorDetails;
     ClientTCPSocket clientResponse = ClientTCPSocket(inet_ntoa(ip)); // TODO
     std::vector<FS_Track::PostFileBlocksData> data;
@@ -27,13 +27,13 @@ void read_data(Server& server, in_addr& ip, FS_Track *message) {
 
         // Update node
         case 1:
-            server.registerUpdateNode(ip.s_addr, message->regUpdateDataGetData());
+            server.registerUpdateNode(ip.s_addr, message.regUpdateDataGetData());
             break;
 
         // Get Message
         case 2:
-            data = (server.getNodesWithFile(message->fsTrackGetHash()));
-            FS_Track::sendPostMessage(clientResponse, message->fsTrackGetHash(), data);
+            data = (server.getNodesWithFile(message.fsTrackGetHash()));
+            FS_Track::sendPostMessage(clientResponse, message.fsTrackGetHash(), data);
             break;
 
         // Post Message
@@ -58,41 +58,16 @@ void read_data(Server& server, in_addr& ip, FS_Track *message) {
     }
 }
 
+
 void serveClient(ServerTCPSocket::SocketInfo connection, Server& serverData, std::mutex& mtx, std::condition_variable& cdt) {
-    uint8_t *buffer = new uint8_t[BUFFER_SIZE];
-    uint32_t bytes, remainBytes;
-    FS_Track *message;
+    FS_Track message = FS_Track();
+    uint8_t* buffer = new uint8_t[BUFFER_SIZE];
 
-    while (true) {
-        message = new FS_Track();
-
-        bytes = connection.receiveData(buffer, 4);
-
-        if (bytes == 0) break;
-
-        message->fsTrackHeaderReadBuffer(buffer, bytes);
-
-        if (message->fsTrackGetOpt() == 1) {
-            bytes = connection.receiveData(buffer, 8);
-            message->fsTrackReadHash(buffer, bytes);
-        }
-
-        remainBytes = message->fsTrackGetSize();
-
-        while (remainBytes > 0) {
-            bytes = connection.receiveData(buffer, std::min(BUFFER_SIZE, remainBytes));
-
-            message->setData(buffer, bytes);
-
-            remainBytes -= bytes;
-        }
-
+    while (FS_Track::readMessage(message, buffer, BUFFER_SIZE, connection)) {
         read_data(serverData, connection.addr.sin_addr, message);
-
-        delete message;
     }
 
-    delete[] (char *) buffer;
+    delete[] (uint8_t*) buffer;
 
     std::unique_lock<std::mutex> lock = std::unique_lock<std::mutex>(mtx);
     cdt.notify_one();

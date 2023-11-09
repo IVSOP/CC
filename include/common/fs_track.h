@@ -31,12 +31,17 @@ public:
     FS_Track();
 
     /**
+     * Parameterized constructor. File hash code is not included
+     * @param opcode Message OPCode: indicates the type of message
+     */
+    FS_Track(uint8_t opcode);
+
+    /**
      * Parameterized constructor
      * @param opcode Message OPCode: indicates the type of message
-     * @param opts Message Opts: Indicates if hash is included or not
      * @param hash Message hash: Indicates which file we are referring. If opts value is false, then this value is ignored
      */
-    FS_Track(uint8_t opcode, bool opts, uint64_t hash);
+    FS_Track(uint8_t opcode, uint64_t hash);
 
     /**
      * Des-contructor
@@ -207,7 +212,7 @@ public:
      * @param data RegUpdate data to send
      */
     static void sendRegMessage(ClientTCPSocket& socket, std::vector<FS_Track::RegUpdateData>& data){
-        FS_Track message = FS_Track(0, false, 0);
+        FS_Track message = FS_Track(0);
 
         message.regUpdateDataSetData(data);
 
@@ -220,7 +225,7 @@ public:
      * @param data RegUpdate data to send
      */
     static void sendUpdateMessage(ClientTCPSocket& socket, std::vector<FS_Track::RegUpdateData>& data){
-        FS_Track message = FS_Track(1, false, 0);
+        FS_Track message = FS_Track(1);
 
         message.regUpdateDataSetData(data);
 
@@ -233,7 +238,7 @@ public:
      * @param hash File's hash
      */
     static void sendGetMessage(ClientTCPSocket& socket, uint64_t hash){
-        FS_Track message = FS_Track(2, true, hash);
+        FS_Track message = FS_Track(2, hash);
 
         sendMessage(socket, message);
     }
@@ -245,7 +250,7 @@ public:
      * @param data Post data to send
      */
     static void sendPostMessage(ClientTCPSocket& socket, uint64_t hash, std::vector<FS_Track::PostFileBlocksData>& data) {
-        FS_Track message = FS_Track(3, true, hash);
+        FS_Track message = FS_Track(3, hash);
 
         message.postFileBlocksSetData(data);
 
@@ -258,11 +263,69 @@ public:
      * @param errorDetails Error details
      */
     static void sendErrorMessage(ClientTCPSocket& socket, std::string& errorDetails) {
-        FS_Track message = FS_Track(4, false, 0);
+        FS_Track message = FS_Track(4);
 
         message.errorMessageSetData(errorDetails);
 
         sendMessage(socket, message);
+    }
+
+    static bool readMessage(FS_Track& message, void* buf, ssize_t bufSize, ServerTCPSocket::SocketInfo connection){
+        uint8_t *buffer = (uint8_t*) buf;
+        uint32_t bytes, remainBytes;
+        uint32_t bufferSize = (uint32_t) bufSize;
+
+        bytes = connection.receiveData(buffer, 4);
+
+        if (bytes == 0) return false;
+
+        message.fsTrackHeaderReadBuffer(buffer, bytes);
+
+        if (message.fsTrackGetOpt() == 1) {
+            bytes = connection.receiveData(buffer, 8);
+            message.fsTrackReadHash(buffer, bytes);
+        }
+
+        remainBytes = message.fsTrackGetSize();
+
+        while (remainBytes > 0) {
+            bytes = connection.receiveData(buffer, std::min(bufferSize, remainBytes));
+
+            message.setData(buffer, bytes);
+
+            remainBytes -= bytes;
+        }
+
+        return true;
+    }
+
+    static bool readMessage(FS_Track& message, void* buf, ssize_t bufSize, ClientTCPSocket connection){
+        uint8_t *buffer = (uint8_t*) buf;
+        uint32_t bytes, remainBytes;
+        uint32_t bufferSize = (uint32_t) bufSize;
+
+        bytes = connection.receiveData(buffer, 4);
+
+        if (bytes == 0) return false;
+
+        message.fsTrackHeaderReadBuffer(buffer, bytes);
+
+        if (message.fsTrackGetOpt() == 1) {
+            bytes = connection.receiveData(buffer, 8);
+            message.fsTrackReadHash(buffer, bytes);
+        }
+
+        remainBytes = message.fsTrackGetSize();
+
+        while (remainBytes > 0) {
+            bytes = connection.receiveData(buffer, std::min(bufferSize, remainBytes));
+
+            message.setData(buffer, bytes);
+
+            remainBytes -= bytes;
+        }
+
+        return true;
     }
 
 };

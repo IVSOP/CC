@@ -7,10 +7,18 @@
 
 /* Constructors */
 
-FS_Track::FS_Track(uint8_t opcode, bool opts, uint64_t hash) {
-    this->opcode_opts = ((opcode << 1) + opts);
+FS_Track::FS_Track(uint8_t opcode){
+    this->opcode_opts = ((opcode << 1) + false);
     FS_Track::setSize(0);
-    this->hash = opts ? hash : 0;
+    this->hash = 0;
+    this->data = nullptr;
+    this->dataSize = 0;
+}
+
+FS_Track::FS_Track(uint8_t opcode, uint64_t hash) {
+    this->opcode_opts = ((opcode << 1) + true);
+    FS_Track::setSize(0);
+    this->hash = hash;
     this->data = nullptr;
     this->dataSize = 0;
 }
