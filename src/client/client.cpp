@@ -145,7 +145,6 @@ void Client::commandParser() {
         filename = input.substr(splitAt+1);
 
         if (command == "get") {
-            // TODO Not same hash (maybe because of /n)?
             uint64_t hash = getFilenameHash((char*) filename.c_str(), filename.size());
 
 			FS_Track::sendGetMessage(this->socketToServer, hash);
@@ -333,5 +332,51 @@ void Client::RespondBlockData(FS_Transfer_Packet& packet) {
 	// TODO: filename = getFilename(packet.getId())
 	writeFileBlock(filename,blockData->getId(),blockData->getData(),packet.getSize() - sizeof(uint32_t));
 	// TODO: write to blocksPerFile new block
+}
+
+void Client::weightedRoundRobin(uint64_t hash, std::unordered_map<uint32_t , std::vector<uint32_t>>& block_nodes, std::unordered_map<uint32_t, uint32_t>& nodes_requested_blocks){
+    std::unordered_map<uint32_t , std::vector<uint32_t>> nodes_blocks;
+    uint32_t maxSize = 0;
+
+    for(auto i = block_nodes.begin(); i != block_nodes.end(); i++){
+        uint32_t node = selectNode(i->second, nodes_requested_blocks);
+
+        if(nodes_blocks.find(node) == nodes_blocks.end()){
+            nodes_blocks.insert({node, std::vector<uint32_t>()});
+        }
+
+        nodes_blocks.find(node)->second.emplace_back(i->first);
+        maxSize = std::max(maxSize, (uint32_t) nodes_blocks.find(node)->second.size());
+    }
+
+    FS_Transfer_Packet packet;
+    uint32_t* arr = new uint32_t[maxSize];
+
+    for(auto i = nodes_blocks.begin(); i != nodes_blocks.end(); i++){
+        std::copy(i->second.begin(), i->second.end(), arr);
+        ssize_t size = i->second.size() * sizeof(uint32_t);
+
+        BlockRequestData data = BlockRequestData(arr, size);
+
+        packet = FS_Transfer_Packet(0, hash, &data, (uint32_t) size);
+
+        // TODO Acabar
+    }
+
+    delete [] arr;
+}
+
+uint32_t Client::selectNode(std::vector<uint32_t>& available_nodes, std::unordered_map<uint32_t, uint32_t>& nodes_requested_blocks){
+    uint32_t size = available_nodes.size();
+    uint32_t ans = available_nodes.at(0);
+    uint32_t cur;
+
+    for(uint32_t i = 1; i < size; i++){
+        cur = available_nodes.at(i);
+
+        if(nodes_requested_blocks.at(cur) > nodes_requested_blocks.at(ans)) ans = cur;
+    }
+
+    return ans;
 }
 

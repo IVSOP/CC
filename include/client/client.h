@@ -83,6 +83,8 @@ struct Client {
 
     void regDirectory(char* directory);
     void regFile(const char* dir, char* fn);
+    void weightedRoundRobin(uint64_t hash, std::unordered_map<uint32_t , std::vector<uint32_t>>& available_nodes, std::unordered_map<uint32_t, uint32_t>& nodes_requested_blocks);
+    uint32_t selectNode(std::vector<uint32_t>& block_nodes, std::unordered_map<uint32_t, uint32_t>& nodes_requested_blocks);
 
 
 
