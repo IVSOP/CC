@@ -11,13 +11,13 @@
 #include <mutex>
 #include <condition_variable>
 #include "server.h"
+#include "errors.h"
 
 #define BUFFER_SIZE (uint32_t) 1500
 
-void read_data(Server& server, in_addr& ip, FS_Track message) {
+void read_data(Server& server, ServerTCPSocket::SocketInfo& connection, FS_Track message) {
     uint8_t OPCode = message.fsTrackGetOpcode();
     std::string errorDetails;
-    ClientTCPSocket clientResponse = ClientTCPSocket(inet_ntoa(ip)); // TODO
     std::vector<FS_Track::PostFileBlocksData> data;
 
     switch (OPCode) {
@@ -27,19 +27,19 @@ void read_data(Server& server, in_addr& ip, FS_Track message) {
 
         // Update node
         case 1:
-            server.registerUpdateNode(ip.s_addr, message.regUpdateDataGetData());
+            server.registerUpdateNode(connection.addr.sin_addr.s_addr, message.regUpdateDataGetData());
             break;
 
         // Get Message
         case 2:
-            data = (server.getNodesWithFile(message.fsTrackGetHash()));
-            FS_Track::sendPostMessage(clientResponse, message.fsTrackGetHash(), data);
+            data = server.getNodesWithFile(message.fsTrackGetHash());
+            FS_Track::sendPostMessage(connection, message.fsTrackGetHash(), data);
             break;
 
         // Post Message
         case 3:
             errorDetails = "Only a server can send a Post Message";
-            FS_Track::sendErrorMessage(clientResponse, errorDetails);
+            FS_Track::sendErrorMessage(connection, errorDetails);
             break;
 
         // Error Message
@@ -49,22 +49,22 @@ void read_data(Server& server, in_addr& ip, FS_Track message) {
 
         // ByeBye Message
         case 5:
-            server.deleteNode(ip.s_addr);
+            server.deleteNode(connection.addr.sin_addr.s_addr);
             break;
         default:
             errorDetails = "Message has invalid OPCode";
-            FS_Track::sendErrorMessage(clientResponse, errorDetails);
+            FS_Track::sendErrorMessage(connection, errorDetails);
             break;
     }
 }
 
 
-void serveClient(ServerTCPSocket::SocketInfo connection, Server& serverData, std::mutex& mtx, std::condition_variable& cdt) {
+void serveClient(ServerTCPSocket::SocketInfo& connection, Server& serverData, std::mutex& mtx, std::condition_variable& cdt) {
     FS_Track message = FS_Track();
     uint8_t* buffer = new uint8_t[BUFFER_SIZE];
 
     while (FS_Track::readMessage(message, buffer, BUFFER_SIZE, connection)) {
-        read_data(serverData, connection.addr.sin_addr, message);
+        read_data(serverData, connection, message);
         message = FS_Track();
     }
 
@@ -83,7 +83,7 @@ void acceptClients(Server& serverData, std::vector<ThreadRAII>& threadGraveyard,
     while (true) {
         new_connection = serverSocket.acceptClient();
 
-        threadGraveyard.emplace_back(std::thread(serveClient, new_connection, std::ref(serverData), std::ref(mtx), std::ref(cdt)), ThreadRAII::DtorAction::join);
+        threadGraveyard.emplace_back(std::thread(serveClient, std::ref(new_connection), std::ref(serverData), std::ref(mtx), std::ref(cdt)), ThreadRAII::DtorAction::join);
     }
 }
 

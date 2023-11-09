@@ -100,7 +100,7 @@ void FS_Track::fsTrackHeaderReadBuffer(void *buf, ssize_t size) {
         return;
     }
 
-    char *buffer = (char *) buf;
+    uint8_t *buffer = (uint8_t *) buf;
 
     memcpy(&(this->opcode_opts), buffer, 1);
 
@@ -172,7 +172,7 @@ uint64_t FS_Track::fsTrackGetHash() {
  * Sets FS_Track data with desired UpdateFileBlocksData structs
  * @param data
  */
-void FS_Track::regUpdateDataSetData(const std::vector<RegUpdateData> &data) {
+void FS_Track:: regUpdateDataSetData(const std::vector<RegUpdateData> &data) {
     // Serialized bytes
     auto *serializedData = new std::vector<uint8_t>();
 
@@ -183,12 +183,6 @@ void FS_Track::regUpdateDataSetData(const std::vector<RegUpdateData> &data) {
     for (const auto &fileBlock: data) {
         // Serialized file Id
         pushUint64IntoVectorUint8(serializedData, fileBlock.file_hash);
-
-        /*
-        if(fileBlock.file_hash == 64){
-            printf("Ola\n");
-        }
-         */
 
         uint32_t blocks_size = fileBlock.block_numbers.size();
         uint8_t significant_bits = blocks_size % 8;
@@ -228,17 +222,17 @@ std::vector<FS_Track::RegUpdateData> FS_Track::regUpdateDataGetData() {
 
     std::vector<FS_Track::RegUpdateData> deserializedData = std::vector<FS_Track::RegUpdateData>();
 
-    uint64_t file_id;
+    uint64_t file_hash;
 
     for (uint32_t j = 0; j < len; j++) {
         // Deserialize file hash
-        file_id = vptrToUint64(serializedData, &i);
+        file_hash = vptrToUint64(serializedData, &i);
 
         // Deserialize total bytes
         uint32_t blocks_len = vptrToUint32(serializedData, &i);
         uint8_t significant_bits = serializedData[i++];
 
-        deserializedData.emplace_back(file_id, bitmap_deserialize(serializedData, &i, blocks_len, significant_bits));
+        deserializedData.emplace_back(file_hash, bitmap_deserialize(serializedData, &i, blocks_len, significant_bits));
     }
 
     return deserializedData;

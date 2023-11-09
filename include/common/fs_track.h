@@ -196,10 +196,22 @@ public:
 
     /**
      * Send any FS_Track to desired destiny
-     * @param ip Message destiny
+     * @param socket Message destiny
      * @param message FSTrack message
      */
     static void sendMessage(ClientTCPSocket& socket, FS_Track& message){
+        std::pair<uint8_t *, uint32_t> buf = message.FS_Track::fsTrackToBuffer();
+        socket.sendData(buf.first, buf.second);
+
+        delete [] (uint8_t*) buf.first;
+    }
+
+    /**
+     * Send any FS_Track to desired destiny
+     * @param socket Message destiny
+     * @param message FSTrack message
+     */
+    static void sendMessage(ServerTCPSocket::SocketInfo & socket, FS_Track& message){
         std::pair<uint8_t *, uint32_t> buf = message.FS_Track::fsTrackToBuffer();
         socket.sendData(buf.first, buf.second);
 
@@ -249,7 +261,7 @@ public:
      * @param hash File's hash
      * @param data Post data to send
      */
-    static void sendPostMessage(ClientTCPSocket& socket, uint64_t hash, std::vector<FS_Track::PostFileBlocksData>& data) {
+    static void sendPostMessage(ServerTCPSocket::SocketInfo& socket, uint64_t hash, std::vector<FS_Track::PostFileBlocksData>& data) {
         FS_Track message = FS_Track(3, hash);
 
         message.postFileBlocksSetData(data);
@@ -263,6 +275,19 @@ public:
      * @param errorDetails Error details
      */
     static void sendErrorMessage(ClientTCPSocket& socket, std::string& errorDetails) {
+        FS_Track message = FS_Track(4);
+
+        message.errorMessageSetData(errorDetails);
+
+        sendMessage(socket, message);
+    }
+
+    /**
+     * Send error message to desired destiny
+     * @param socket Socket to send message through
+     * @param errorDetails Error details
+     */
+    static void sendErrorMessage(ServerTCPSocket::SocketInfo& socket, std::string& errorDetails) {
         FS_Track message = FS_Track(4);
 
         message.errorMessageSetData(errorDetails);

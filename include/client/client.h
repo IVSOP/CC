@@ -49,9 +49,9 @@ struct FS_Transfer_Info {
 struct Client {
 
     //using FS_Transfer_Packet_handler = void (Client::*) (FS_Transfer_Packet&); //typedef para as funções da dispatch table
-
     Client();
-	Client(const std::string &IPv4); // para set do server IP
+    Client(char* dir);
+	Client(char* dir, const std::string &IPv4); // para set do server IP
 
     ~Client();
 

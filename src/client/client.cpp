@@ -6,22 +6,36 @@
 
 #define SERVER_IP "0.0.0.0"
 #define FILENAME_BUFFER_SIZE 300
+#define BUFFER_SIZE 1500
 
 Client::Client() // por default sockets aceitam tudo
-: socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), dispatchTable(), fileDescriptorMap()
+        : socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), fileDescriptorMap(), dispatchTable()
 {
     // register
     initUploadLoop();
-	assignDispatchTable();
+    assignDispatchTable();
     commandParser();
 }
 
-Client::Client(const std::string &IPv4)
-: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), dispatchTable(), fileDescriptorMap()
+Client::Client(char* dir) // por default sockets aceitam tudo
+: socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), fileDescriptorMap(), dispatchTable()
 {
     // register
     initUploadLoop();
 	assignDispatchTable();
+    regDirectory(dir);
+    registerWithServer();
+    commandParser();
+}
+
+Client::Client(char* dir, const std::string &IPv4)
+: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), fileDescriptorMap(), dispatchTable()
+{
+    // register
+    initUploadLoop();
+	assignDispatchTable();
+    regDirectory(dir);
+    registerWithServer();
     commandParser();
 }
 
@@ -114,8 +128,12 @@ void Client::commandParser() {
 	std::string input;
     std::string command;
     std::string filename;
+    FS_Track message;
+    uint8_t* buffer = new uint8_t[BUFFER_SIZE];
 
 	while (true) {
+        std::cout << "What's the next command?" << std::endl;
+
         getline(std::cin,input);
 
         if(input.empty()) break;
@@ -126,15 +144,37 @@ void Client::commandParser() {
 
         filename = input.substr(splitAt+1);
 
-        if (command.compare("GET") == 0) {
+        if (command == "get") {
+            // TODO Not same hash (maybe because of /n)?
             uint64_t hash = getFilenameHash((char*) filename.c_str(), filename.size());
 
 			FS_Track::sendGetMessage(this->socketToServer, hash);
+
+            message = FS_Track();
+
+            if(!FS_Track::readMessage(message, buffer, BUFFER_SIZE, this->socketToServer)){
+                std::cout << "No message received" << std::endl;
+                continue;
+            }
+
+            std::cout << (uint32_t) message.fsTrackGetOpcode() << ' ' << (message.fsTrackGetOpt() ? 1 : 0) << ' ' << message.fsTrackGetSize() << ' ' << message.fsTrackGetHash() << std::endl;
+
+            std::vector<FS_Track::PostFileBlocksData> receivedData = message.postFileBlocksGetData();
+
+            if(receivedData.empty()) {
+                std::cout << "No data received" << std::endl;
+                continue;
+            }
+
+            for(auto& postData : receivedData)
+                std::cout << postData.ip.s_addr << std::endl;
 
         } else {
             printf("Invalid command\n");
         }
     }
+
+    delete [] (uint*) buffer;
 }
 
 void Client::registerWithServer(){

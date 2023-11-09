@@ -118,7 +118,7 @@ void test_fs_transfer_sendData() {
 // }
 
 void test_file_write_block() {
-    Client c;
+    Client c; // TODO Corrigir
     //uint32_t blockID[] = {0,1,2};
     uint32_t blockID[] = {5};
     BlockRequestData block = BlockRequestData(blockID,sizeof(blockID));
@@ -133,7 +133,7 @@ void test_file_write_block() {
 }
 
 void test_file_read_block() {
-    Client c;
+    Client c; // TODO Corrigir
     char teste[] = "Shiban é mau pastor, não é como o nestor, as threads andam sem motor";
     BlockSendData block = BlockSendData(5,teste,sizeof(teste)+ sizeof(uint32_t));
     FS_Transfer_Packet packet = FS_Transfer_Packet(1,1258284,&block,sizeof(teste) + sizeof(uint32_t));
@@ -280,18 +280,14 @@ int nadaaver(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-    /*
     if(argc != 2){
         print_error("Not enough arguments");
         return -1;
     }
 
-    Client client = Client();
-    client.regDirectory(argv[1]);
+    Client client = Client(argv[1]);
 
-    client.registerWithServer();
+    std::cout << "The end" << std::endl;
 
-    printf("Acabou\n");
-     */
-    nadaaver(argc, argv);
+    //nadaaver(argc, argv);
 }

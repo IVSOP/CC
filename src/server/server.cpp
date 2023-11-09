@@ -34,13 +34,21 @@ void Server::addNewInfo(uint32_t ip, FS_Track::RegUpdateData &newNode) {
 
     if (found) { // se já existiam blocos do ficheiro
         bitMap nodeBlocks = iterPair.second;
-        uint32_t size = nodeBlocks.size();
+        uint32_t curSize = nodeBlocks.size();
+        uint32_t receivedSize = receivedBlocks.size();
+        uint32_t min = std::min(curSize, receivedSize);
+        uint32_t max = std::max(curSize, receivedSize);
 
-        // Update bitMap
-        for(uint32_t i = 0; i < receivedBlocks.size(); i++){
-            bool prev = i < size && nodeBlocks.at(i);
-            nodeBlocks.insert(receivedBlocks.begin() + i, prev || receivedBlocks.at(i));
+        // Update bitMap existent
+        for(uint32_t i = 0; i < min; i++){
+            nodeBlocks.insert(nodeBlocks.begin() + i, nodeBlocks.at(i) || receivedBlocks.at(i));
         }
+
+        // Add new values to bitMap
+        for(uint32_t i = min; i < max; i++){
+            nodeBlocks.push_back(receivedBlocks.at(i));
+        }
+
     } else { // se ainda não exista par (nodo, blocos do ficheiro)
         (mapIter->second).emplace_back(ip, receivedBlocks); // criar novo par (nodo, blocos do ficheiro)
     }
