@@ -65,6 +65,7 @@ void serveClient(ServerTCPSocket::SocketInfo connection, Server& serverData, std
 
     while (FS_Track::readMessage(message, buffer, BUFFER_SIZE, connection)) {
         read_data(serverData, connection.addr.sin_addr, message);
+        message = FS_Track();
     }
 
     delete[] (uint8_t*) buffer;
