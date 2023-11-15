@@ -9,34 +9,35 @@
 #define BUFFER_SIZE 1500
 
 Client::Client() // por default sockets aceitam tudo
-        : socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), fileDescriptorMap(), dispatchTable()
+        : socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), dispatchTable()
 {
     // register
     initUploadLoop();
     assignDispatchTable();
-    commandParser();
+    commandParser("./files"); // folder standard para ficheiros? importa?
+	//regDirectory("./files"); // improta?
 }
 
 Client::Client(char* dir) // por default sockets aceitam tudo
-: socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), fileDescriptorMap(), dispatchTable()
+: socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable()
 {
     // register
     initUploadLoop();
 	assignDispatchTable();
     regDirectory(dir);
     registerWithServer();
-    commandParser();
+    commandParser(dir);
 }
 
 Client::Client(char* dir, const std::string &IPv4)
-: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), fileDescriptorMap(), dispatchTable()
+: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable()
 {
     // register
     initUploadLoop();
 	assignDispatchTable();
     regDirectory(dir);
     registerWithServer();
-    commandParser();
+    commandParser(dir);
 }
 
 Client::~Client() {
@@ -91,7 +92,7 @@ void Client::answerRequestsLoop() {
 		} else {
 			uint8_t opcode = data.getOpcode();
 			if (opcode <= 1) {
-				(this->*dispatchTable[opcode])(data); // assign data to function with respective opcode
+				(this->*dispatchTable[opcode])(info); // assign data to function with respective opcode
 			} else {
 				perror("No handler found for packet Opcode");
 				return;
@@ -103,6 +104,7 @@ void Client::answerRequestsLoop() {
 }
 
 //voltar a meter const FS_Transfer_Info depois. Tirei para testes
+// push packet to output buffer
 void Client::sendInfo(FS_Transfer_Info &info) {
 	BlockSendData * block = static_cast<BlockSendData *> (info.packet.getData());
 	block->data[(info.packet.getSize() - 4)] = '\0';
@@ -124,7 +126,7 @@ void Client::initUploadLoop() {
 	answererThread.detach();
 }
 
-void Client::commandParser() {
+void Client::commandParser(const char * dir) {
 	std::string input;
     std::string command;
     std::string filename;
@@ -165,8 +167,16 @@ void Client::commandParser() {
                 continue;
             }
 
-            for(auto& postData : receivedData)
+			//criar bitMap vazio para ficheiro que se fez get
+			regNewFile(dir, filename.c_str(), 500); // !!!!!!!!!!!! mudar 500 para valor em bytes do ficheiro, recebido do server
+
+            for(auto& postData : receivedData) {
                 std::cout << postData.ip.s_addr << std::endl;
+			}
+
+			// FS_Track::PostFileBlocksData firstNode = receivedData.front(); // para já, faz-se get de primeiro nodo que servidor devolve
+
+			// BlockRequestData reqMsg = 
 
         } else {
             printf("Invalid command\n");
@@ -214,6 +224,7 @@ void Client::regDirectory(char* dirPath){
 void Client::regFile(const char* dir, char* fn){
     char filePath[FILENAME_BUFFER_SIZE];
     snprintf(filePath, FILENAME_BUFFER_SIZE, "%s%s", dir, fn);
+	// printf("file: %s\n",filePath);
 
 	FILE* file = fopen(filePath, "r");
 
@@ -223,8 +234,6 @@ void Client::regFile(const char* dir, char* fn){
     }
 
 	std::string filename = std::string (fn);
-
-	this->fileDescriptorMap.insert({filename, file});
 
 	struct stat fileStats;
 
@@ -243,7 +252,46 @@ void Client::regFile(const char* dir, char* fn){
 
     uint64_t hash = getFilenameHash(fn, strlen(fn));
     this->blocksPerFile.insert({hash, fileBitMap});
+	this->currentBlocksInEachFile.insert({hash,totalBlocks});
+	this->fileDescriptorMap.insert({hash, file});
+
 }
+
+//registar ficheiro novo que se faz GET nas estruturas de ficheiros do cliente
+void Client::regNewFile(const char* dir, const char* fn, size_t size) {
+	char filePath[FILENAME_BUFFER_SIZE];
+    snprintf(filePath, FILENAME_BUFFER_SIZE, "%s%s", dir, fn);
+	printf("file: %s\n",filePath);
+
+	FILE* file = fopen(filePath, "wb+"); // se ficheiro já existia, reescreve tudo, senão cria novo
+
+    if(!file){
+        print_error("Error creating file structures for GET");
+        return;
+    }
+
+	//prealocar ficheiro, escrevendo size bytes no ficheiro // melhor solução???
+	std::vector<char> emptyBuffer(size,0);
+
+	if (std::fwrite(emptyBuffer.data(),1,size,file) != size) {
+		print_error("Error preallocing file for GET");
+		std::fclose(file);
+		return;
+	}
+
+	//calcular nºblocos do ficheiro
+	uint32_t totalBlocks = size / BLOCK_SIZE ;
+    totalBlocks += (size % BLOCK_SIZE != 0) ;
+
+	//bitMap a zeros
+    bitMap fileBitMap = bitMap(totalBlocks,false);
+
+	uint64_t hash = getFilenameHash((char *) fn, strlen(fn));
+    this->blocksPerFile.insert({hash, fileBitMap});
+	this->currentBlocksInEachFile.insert({hash,0});
+	this->fileDescriptorMap.insert({hash, file});
+}
+
 //parse requests
 
 void Client::assignDispatchTable() {
@@ -253,85 +301,103 @@ void Client::assignDispatchTable() {
 
 
 // preenche buffer dado com bloco de ficheiro, devolve size preenchido
-// error checking para bloco não existir?
-ssize_t Client::getFileBlock(const std::string& filename, uint32_t blockN, char * buffer) {
-	std::ifstream file(filename, std::ios::binary);
+ssize_t Client::getFileBlock(uint64_t fileHash, uint32_t blockN, char * buffer) {
+	FILE * file = this->fileDescriptorMap[fileHash];
 	if (file) {
-		file.seekg(blockN * BLOCK_SIZE);
-		file.read(buffer,BLOCK_SIZE);
-		if (file.gcount() == 0) {
+		if ((this->blocksPerFile[fileHash].size() - 1) < blockN) {
 			perror("Error seeking block pos");
 			return -2;
 		}
-		return file.gcount();
-	}
-	else {
-		perror("File not found");
+
+		std::fseek(file,blockN * BLOCK_SIZE,SEEK_SET);
+		return static_cast<ssize_t> (std::fread(buffer,1,BLOCK_SIZE,file));
+
+	} else {
+		print_error("File not found");
 		return -1;
 	}
 }
 
 // write new block to file
-void Client::writeFileBlock(const std::string& filename, uint32_t blockN, char * buffer, ssize_t size) {
-	std::fstream file(filename, std::ios::in | std::ios::out | std::ios::binary);
-	std::vector<char> empty_block(BLOCK_SIZE, 0);
-	if (!file) { //se deu erro ao criar
-		perror("Error creating file to receive given blocks");
+void Client::writeFileBlock(uint64_t fileHash, uint32_t blockN, char * buffer, size_t size) {
+	FILE * file = this->fileDescriptorMap[fileHash];
+
+	if (file) {
+		// Se bloco pedido não existente
+		// printf("bloco de nºmax: %lu, bloco pedido: %d\n", this->blocksPerFile[fileHash].size(), blockN);
+		if ((this->blocksPerFile[fileHash].size() - 1) < blockN) {
+			print_error("Error seeking block pos");
+			return;
+		}
+		std::fseek(file,blockN * BLOCK_SIZE,SEEK_SET);
+		size_t bytesWritten = std::fwrite(buffer,1, size,file);
+		// printf("bytes written: %zu\n",bytesWritten);
+		if (bytesWritten != static_cast<size_t> (size)) {
+			perror("Didn't write correct size of bytes to file");
+			return;
+		}
+		if (fflush(file) != 0) {
+			print_error("Error flushing written data");
+			return;
+		}
+
+	} else {
+		print_error("File not found");
 		return;
 	}
-	// calcular bloco máx atual
-	file.seekg(0,std::ios::end);
-	uint32_t total_blocks = static_cast<uint32_t> (file.tellg());
-	if ((total_blocks / BLOCK_SIZE) % BLOCK_SIZE != 0) { // extremamente ineficiente, mudar depois !!! forma rápida de calcular max block
-		total_blocks++;
-	}
-	//preencher com espaço branco até chegar ao bloco pretendido
-	for (uint32_t i=total_blocks;i<blockN;i++) {
-		file.write(empty_block.data(),BLOCK_SIZE);
-	}
-
-	file.seekg(blockN * BLOCK_SIZE);
-	file.write(buffer,size);
-	file.close();
 }
 
 //interpret block requests
-void Client::ReqBlockData(FS_Transfer_Packet& packet) {
-	printf("entrou no req\n");
-	uint32_t reqSize = packet.getSize() / sizeof(uint32_t); // número de blocos
+void Client::ReqBlockData(FS_Transfer_Info& info) {
+	FS_Transfer_Packet packet = info.packet;
+	// printf("entrou no req\n");
+	uint32_t reqSize = packet.getSize() / sizeof(uint32_t); // número de blocos pedidos por outro nodo
 	ssize_t dataSize;
 	uint32_t * blocks = static_cast <BlockRequestData *> (packet.getData())->getData();
 	char blockData[BLOCK_SIZE];
-	std::string filename = "/Users/peters/Desktop/CC_TP2/teste.txt";
 	for (uint32_t i = 0; i < reqSize; i++) {
 		printf("processing block: %d\n", blocks[i]);
+
 		//obter bloco de ficheiro
 
-		// TODO: filename = packet.getId()
-		dataSize = getFileBlock(filename,blocks[i],blockData);
-		if (dataSize < 0) continue; // se não for encontrado esse bloco do ficheiro, salta para o próximo e ignora
+		dataSize = getFileBlock(packet.getId(),blocks[i],blockData);
+		printf("data read: %s\n",blockData);
+		if (dataSize < 0) {
+			perror("Couldn't find block pos in file, skipping..");
+			continue; // se não for encontrado esse bloco do ficheiro, salta para o próximo e ignora
+		}
+
 		//Construir fs_transfer_packet
 		blockSend.setData(blockData,dataSize); //copia duas vezes os dados ??
 		blockSend.setId(blocks[i]);
 		dataPacket.setId(packet.getId());
 		dataPacket.setOpcode(1);
-		dataPacket.setData(static_cast <void*> (&blockSend),sizeof(uint32_t) + dataSize); //setData já altera o size
+		dataPacket.setData(static_cast <void*> (&blockSend),sizeof(uint32_t) + dataSize); //setData já altera o size e atualiza checksum
 
-		//dataFinal.addr = ???
+		dataFinal.addr = info.addr; // endereço destino tem de ser passado no info recebido
 		dataFinal.packet = dataPacket;
+
 
 		Client::sendInfo(dataFinal);
 	}
 }
 
 //receive block data (previously requested)
-void Client::RespondBlockData(FS_Transfer_Packet& packet) {
-	printf("entrou no respond\n");
-	std::string filename = "/Users/peters/Desktop/CC_TP2/teste.txt";
+void Client::RespondBlockData(FS_Transfer_Info& info) {
+	FS_Transfer_Packet packet = info.packet;
+	// printf("entrou no respond\n");
 	BlockSendData * blockData = static_cast<BlockSendData *>(packet.getData());
-	// TODO: filename = getFilename(packet.getId())
-	writeFileBlock(filename,blockData->getId(),blockData->getData(),packet.getSize() - sizeof(uint32_t));
-	// TODO: write to blocksPerFile new block
+	uint64_t fileHash = packet.getId();
+	writeFileBlock(fileHash,blockData->getId(),blockData->getData(),packet.getSize() - sizeof(uint32_t));
+
+	//atualizar bitMap do respetivo ficheiro
+	this->blocksPerFile[fileHash][blockData->getId()] = true;
+	this->currentBlocksInEachFile[fileHash]++;
+
+	//testar se ficheiro está completo
+	if (this->currentBlocksInEachFile[fileHash] == this->blocksPerFile[fileHash].size()) {
+		//signal to client block transfered??
+	}
 }
 
 void Client::weightedRoundRobin(uint64_t hash, std::unordered_map<uint32_t , std::vector<uint32_t>>& block_nodes, std::unordered_map<uint32_t, uint32_t>& nodes_requested_blocks){

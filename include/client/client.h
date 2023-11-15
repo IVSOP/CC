@@ -48,7 +48,8 @@ struct FS_Transfer_Info {
 
 struct Client {
 
-    //using FS_Transfer_Packet_handler = void (Client::*) (FS_Transfer_Packet&); //typedef para as funções da dispatch table
+    using FS_Transfer_Packet_handler = void (Client::*) (FS_Transfer_Info&); //typedef para as funções da dispatch table
+
     Client();
     Client(char* dir);
 	Client(char* dir, const std::string &IPv4); // para set do server IP
@@ -58,7 +59,7 @@ struct Client {
     // main funcs, called in constructor
     void registerWithServer();
     void initUploadLoop();
-    void commandParser();
+    void commandParser(const char * dir);
     void assignDispatchTable();
 
     void readLoop();
@@ -70,23 +71,21 @@ struct Client {
 	void sendInfo(FS_Transfer_Info &info);
 
     //parse opcode funcs
-    void ReqBlockData(FS_Transfer_Packet& packet);
-    void RespondBlockData(FS_Transfer_Packet& packet);
+    void ReqBlockData(FS_Transfer_Info& info);
+    void RespondBlockData(FS_Transfer_Info& info);
 
-    ssize_t getFileBlock(const std::string& filename, uint32_t blockID, char * buffer);
-    void writeFileBlock(const std::string& filename, uint32_t blockN, char * buffer, ssize_t size);
+    void regNewFile(const char* dir, const char* fn, size_t size);
+    ssize_t getFileBlock(uint64_t fileHash, uint32_t blockID, char * buffer);
+    void writeFileBlock(uint64_t fileHash, uint32_t blockN, char * buffer, size_t size);
 
 	void wrongChecksum(const FS_Transfer_Info &info) {
 		// ....................
 	}
 
-
     void regDirectory(char* directory);
     void regFile(const char* dir, char* fn);
     void weightedRoundRobin(uint64_t hash, std::unordered_map<uint32_t , std::vector<uint32_t>>& available_nodes, std::unordered_map<uint32_t, uint32_t>& nodes_requested_blocks);
     uint32_t selectNode(std::vector<uint32_t>& block_nodes, std::unordered_map<uint32_t, uint32_t>& nodes_requested_blocks);
-
-
 
     ClientTCPSocket socketToServer;
     NodeUDPSocket udpSocket; // usamos apenas 1 socket para tudo
@@ -97,11 +96,16 @@ struct Client {
     BoundedBuffer<FS_Transfer_Info, CLIENT_OUTPUT_BUFFER_SIZE> outputBuffer; // meter isto na heap??????????????
 
 	// sem controlo de concorrencia por agora, nao planeio usar varias threads aqui
+    //track blocks that each file has
 	std::unordered_map<uint64_t, bitMap> blocksPerFile;
-    std::unordered_map<std::string, FILE*> fileDescriptorMap;
+    // juntar ao array de cima maybe
+    std::unordered_map<uint64_t, uint32_t> currentBlocksInEachFile; 
+    
+    //track file descriptors for each filehash
+    std::unordered_map<uint64_t, FILE*> fileDescriptorMap;
 
     //dispatch table
-    std::unordered_map<uint8_t,void (Client::*) (FS_Transfer_Packet&)> dispatchTable;
+    std::unordered_map<uint8_t,FS_Transfer_Packet_handler> dispatchTable;
 
     //inicializados só uma vez, alterados com o decorrer
     FS_Transfer_Info dataFinal;

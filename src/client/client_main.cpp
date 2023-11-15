@@ -3,8 +3,8 @@
 #include "fs_transfer.h"
 #include "fs_track.h"
 #include "fs_track_test.h"
-#include <checksum.h>
-#include <error.h>
+#include "checksum.h"
+#include "errors.h"
 #include "client.h"
 #include "cmdline.h"
 #include "socket_common.h"
@@ -117,31 +117,35 @@ void test_fs_transfer_sendData() {
 // 	}
 // }
 
-void test_file_write_block() {
-    Client c; // TODO Corrigir
+void test_file_write_block(char * dir) {
+    Client c(dir);
     //uint32_t blockID[] = {0,1,2};
-    uint32_t blockID[] = {5};
+    uint32_t blockID[] = {2,3};
     BlockRequestData block = BlockRequestData(blockID,sizeof(blockID));
-    FS_Transfer_Packet packet = FS_Transfer_Packet(0,1258284,&block,sizeof(blockID));
+    char filename[] = "teste.txt";
+    c.regNewFile(dir,filename, 1024*4); // registar ficheiro
+    FS_Transfer_Packet packet = FS_Transfer_Packet(0,getFilenameHash(filename,strlen(filename)),&block,sizeof(blockID));
     FS_Transfer_Info info;
     info.packet = packet;
-    c.ReqBlockData(packet);
+    c.ReqBlockData(info);
 
-    printf("mimir");
+    printf("mimir\n");
     sleep(1000);
-
 }
 
-void test_file_read_block() {
-    Client c; // TODO Corrigir
+void test_file_read_block(char * dir) {
+    Client c(dir);
     char teste[] = "Shiban é mau pastor, não é como o nestor, as threads andam sem motor";
-    BlockSendData block = BlockSendData(5,teste,sizeof(teste)+ sizeof(uint32_t));
-    FS_Transfer_Packet packet = FS_Transfer_Packet(1,1258284,&block,sizeof(teste) + sizeof(uint32_t));
+    uint32_t blockRequested = 1;
+    BlockSendData block = BlockSendData(blockRequested,teste,sizeof(teste)+ sizeof(uint32_t));
+    char filename[] = "teste.txt";
+    c.regNewFile(dir,filename,1024*4); // registar ficheiro
+    FS_Transfer_Packet packet = FS_Transfer_Packet(2,getFilenameHash(filename,strlen(filename)),&block,sizeof(teste) + sizeof(uint32_t));
     FS_Transfer_Info info;
     info.packet = packet;
-    c.RespondBlockData(packet);
+    c.RespondBlockData(info);
 
-    printf("mimir");
+    printf("mimir\n");
     sleep(1000);
 }
 
@@ -289,5 +293,9 @@ int main(int argc, char *argv[]) {
 
     std::cout << "The end" << std::endl;
 
+    // test_file_read_block(argv[1]);
+    //test_file_write_block(argv[1]);
     //nadaaver(argc, argv);
 }
+
+
