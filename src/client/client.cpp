@@ -402,18 +402,18 @@ void Client::RespondBlockData(FS_Transfer_Info& info) {
 	}
 }
 
-int cmpBlocksAvailability(std::pair<uint32_t , std::vector<struct sockaddr_in>>& a, std::pair<uint32_t , std::vector<struct sockaddr_in>>& b){
+int cmpBlocksAvailability(std::pair<uint32_t , std::vector<Ip>>& a, std::pair<uint32_t , std::vector<Ip>>& b){
 	return a.second.size() - b.second.size();
 }
 
-void Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t , std::vector<struct sockaddr_in>>>& block_nodes){
-    std::unordered_map<struct sockaddr_in , std::vector<uint32_t>> nodes_blocks;
+void Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<Ip>>>& block_nodes){
+    std::unordered_map<Ip, std::vector<uint32_t>> nodes_blocks;
     uint32_t maxSize = 0;
 
 	std::sort(block_nodes.begin(), block_nodes.end(), cmpBlocksAvailability);
 
     for(auto i = block_nodes.begin(); i != block_nodes.end(); i++){
-        uint32_t node = selectNode(i->second);
+        Ip node = selectNode(i->second);
 
         if(nodes_blocks.find(node) == nodes_blocks.end()){
             nodes_blocks.insert({node, std::vector<uint32_t>()});
@@ -443,13 +443,12 @@ void Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t , 
     delete [] arr;
 }
 
-struct sockaddr_in Client::selectNode(std::vector<struct sockaddr_in>& available_nodes){
+Ip Client::selectNode(std::vector<Ip>& available_nodes){
     uint32_t size = available_nodes.size();
-    struct sockaddr_in ans = available_nodes.at(0);
-    struct sockaddr_in cur;
+    Ip ans = available_nodes.at(0);
 
     for(uint32_t i = 1; i < size; i++){
-        cur = available_nodes.at(i);
+        Ip cur = available_nodes.at(i);
 
         if(this->nodes_priority.at(cur) > this->nodes_priority.at(ans)) ans = cur;
     }

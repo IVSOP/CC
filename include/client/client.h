@@ -15,19 +15,55 @@
 #define CLIENT_INPUT_BUFFER_SIZE 10
 #define CLIENT_OUTPUT_BUFFER_SIZE 10
 
+// Struct to store sockaddr_in structs
+struct Ip {
+    struct sockaddr_in addr;
+
+    Ip() = default;
+
+    Ip(struct sockaddr_in addr){
+        this->addr = addr;
+    }
+
+    bool operator==(const struct Ip &o) {
+        return addr.sin_addr.s_addr == o.addr.sin_addr.s_addr;
+    }
+
+    bool operator<(const struct Ip &o) {
+        return addr.sin_addr.s_addr < o.addr.sin_addr.s_addr;
+    }
+};
+
+namespace std {
+    template <>
+    struct hash<Ip> {
+        std::size_t operator()(const Ip& ip) const {
+            return std::hash<int>()(ip.addr.sin_addr.s_addr);
+        }
+    };
+    template <>
+    struct equal_to<Ip> {
+        bool operator()(const Ip &lhs, const Ip &rhs) const {
+            return lhs.addr.sin_addr.s_addr == rhs.addr.sin_addr.s_addr;
+        }
+    };
+}
+
 // struct para que as threads possam trabalhar sobre os dados recebidos
 struct FS_Transfer_Info {
 
 	// por default fica neste por e dizemos que tem ipv4
-	// assim basta mudar o ip para tudo funcionar
+	// assim basta mudar o Ip para tudo funcionar
 	FS_Transfer_Info() {
 		addr.sin_family = AF_INET;
 		addr.sin_port = htons(UDP_PORT);
 	}
 
-    FS_Transfer_Info(FS_Transfer_Packet& packet, uint32_t ip, const time_t& timestamp){
-
-    }
+    FS_Transfer_Info(const FS_Transfer_Packet& packet, const Ip& ip, const time_t& timestamp){
+        this->packet = packet;
+        this->addr = ip.addr;
+        this->timestamp = timestamp;
+    };
 
     time_t timestamp;
     struct sockaddr_in addr;
@@ -42,7 +78,6 @@ struct FS_Transfer_Info {
     void setPacket(const FS_Transfer_Packet *, ssize_t size);
 
 };
-
 
 // 1 thread le do socket, outra pega nisso e realiza trabalho
 // 1 thread escreve para socket, main thread faz trabalho em que escreve para o buffer dela
@@ -89,8 +124,8 @@ struct Client {
 
     void regDirectory(char* directory);
     void regFile(const char* dir, char* fn);
-    void Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<struct sockaddr_in>>>& block_nodes);
-    struct sockaddr_in selectNode(std::vector<uint32_t>& block_nodes);
+    void weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<Ip>>>& block_nodes);
+    Ip selectNode(std::vector<Ip>& available_nodes);
 
     ClientTCPSocket socketToServer;
     NodeUDPSocket udpSocket; // usamos apenas 1 socket para tudo
@@ -112,14 +147,8 @@ struct Client {
     //dispatch table
     std::unordered_map<uint8_t,FS_Transfer_Packet_handler> dispatchTable;
 
-    // Keep nodes priority updated (map <ip, priority>)
-    std::unordered_map<struct sockaddr_in, uint32_t> nodes_priority;
-
-    struct ip{
-        struct sockaddr_in ip;
-
-        
-    }
+    // Keep nodes priority updated (map <Ip, priority>)
+    std::unordered_map<Ip, uint32_t> nodes_priority;
 
     //inicializados só uma vez, alterados com o decorrer
     FS_Transfer_Info dataFinal;
