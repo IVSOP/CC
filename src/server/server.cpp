@@ -59,7 +59,7 @@ void Server::printMap() {
     for (const auto &kv: fileMap) {
         auto value = kv.second;
         for (const auto &pair: value) {
-            printf("ip: %d\n", pair.first);
+            printf("Ip: %d\n", pair.first);
             auto vec = pair.second;
             for (uint32_t number: vec) {
                 printf("%d ", number);

@@ -45,7 +45,7 @@ void fs_node_cmdParser(char *argv[]) {
 //encaminha para fs_tracker ou fs_node
 int main_cmdParser(int argc, char *argv[]) {
     if (argc < 2) {
-        printf("must run one of: \n FS_Tracker \n; FS_Node <folder> ip port\n");
+        printf("must run one of: \n FS_Tracker \n; FS_Node <folder> Ip port\n");
         return -1;
     }
     if (!strcmp(argv[1], "FS_Tracker")) {

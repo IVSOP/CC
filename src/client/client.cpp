@@ -3,13 +3,15 @@
 #include <dirent.h>
 #include "errors.h"
 #include <sys/stat.h> // TODO
+#include <algorithm>
+#include <ctime>
 
 #define SERVER_IP "0.0.0.0"
 #define FILENAME_BUFFER_SIZE 300
 #define BUFFER_SIZE 1500
 
 Client::Client() // por default sockets aceitam tudo
-        : socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), dispatchTable()
+        : socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), dispatchTable(), nodes_priority()
 {
     // register
     initUploadLoop();
@@ -19,7 +21,7 @@ Client::Client() // por default sockets aceitam tudo
 }
 
 Client::Client(char* dir) // por default sockets aceitam tudo
-: socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable()
+: socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority()
 {
     // register
     initUploadLoop();
@@ -30,7 +32,7 @@ Client::Client(char* dir) // por default sockets aceitam tudo
 }
 
 Client::Client(char* dir, const std::string &IPv4)
-: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable()
+: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority()
 {
     // register
     initUploadLoop();
@@ -400,12 +402,18 @@ void Client::RespondBlockData(FS_Transfer_Info& info) {
 	}
 }
 
-void Client::weightedRoundRobin(uint64_t hash, std::unordered_map<uint32_t , std::vector<uint32_t>>& block_nodes, std::unordered_map<uint32_t, uint32_t>& nodes_requested_blocks){
-    std::unordered_map<uint32_t , std::vector<uint32_t>> nodes_blocks;
+int cmpBlocksAvailability(std::pair<uint32_t , std::vector<Ip>>& a, std::pair<uint32_t , std::vector<Ip>>& b){
+	return a.second.size() - b.second.size();
+}
+
+void Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<Ip>>>& block_nodes){
+    std::unordered_map<Ip, std::vector<uint32_t>> nodes_blocks;
     uint32_t maxSize = 0;
 
+	std::sort(block_nodes.begin(), block_nodes.end(), cmpBlocksAvailability);
+
     for(auto i = block_nodes.begin(); i != block_nodes.end(); i++){
-        uint32_t node = selectNode(i->second, nodes_requested_blocks);
+        Ip node = selectNode(i->second);
 
         if(nodes_blocks.find(node) == nodes_blocks.end()){
             nodes_blocks.insert({node, std::vector<uint32_t>()});
@@ -416,6 +424,7 @@ void Client::weightedRoundRobin(uint64_t hash, std::unordered_map<uint32_t , std
     }
 
     FS_Transfer_Packet packet;
+	FS_Transfer_Info info;
     uint32_t* arr = new uint32_t[maxSize];
 
     for(auto i = nodes_blocks.begin(); i != nodes_blocks.end(); i++){
@@ -426,21 +435,22 @@ void Client::weightedRoundRobin(uint64_t hash, std::unordered_map<uint32_t , std
 
         packet = FS_Transfer_Packet(0, hash, &data, (uint32_t) size);
 
-        // TODO Acabar
+		info = FS_Transfer_Info(packet, i->first, std::time(nullptr));
+
+        ReqBlockData(info);
     }
 
     delete [] arr;
 }
 
-uint32_t Client::selectNode(std::vector<uint32_t>& available_nodes, std::unordered_map<uint32_t, uint32_t>& nodes_requested_blocks){
+Ip Client::selectNode(std::vector<Ip>& available_nodes){
     uint32_t size = available_nodes.size();
-    uint32_t ans = available_nodes.at(0);
-    uint32_t cur;
+    Ip ans = available_nodes.at(0);
 
     for(uint32_t i = 1; i < size; i++){
-        cur = available_nodes.at(i);
+        Ip cur = available_nodes.at(i);
 
-        if(nodes_requested_blocks.at(cur) > nodes_requested_blocks.at(ans)) ans = cur;
+        if(this->nodes_priority.at(cur) > this->nodes_priority.at(ans)) ans = cur;
     }
 
     return ans;

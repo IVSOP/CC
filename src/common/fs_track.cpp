@@ -253,7 +253,7 @@ void FS_Track::postFileBlocksSetData(const std::vector<FS_Track::PostFileBlocksD
 
     // For each struct
     for (const auto &node_blocks: data) {
-        //Serialize ip and total number of blocks
+        //Serialize Ip and total number of blocks
         pushUint32IntoVectorUint8(serializedData, node_blocks.ip.s_addr);
 
         uint32_t blocks_size = node_blocks.block_numbers.size();
@@ -299,7 +299,7 @@ std::vector<FS_Track::PostFileBlocksData> FS_Track::postFileBlocksGetData() {
 
     // For each struct sent
     for (uint32_t k = 0; k < len; k++) {
-        // Get Node ip
+        // Get Node Ip
         ip.s_addr = vptrToUint32(serializedData, &i);
 
         uint32_t blocks_len = vptrToUint32(serializedData, &i);
