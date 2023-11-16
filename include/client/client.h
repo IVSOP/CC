@@ -124,6 +124,12 @@ struct Client {
 
     void regDirectory(char* directory);
     void regFile(const char* dir, char* fn);
+
+    /**
+     * Select node from who we should request a block through a priority
+     * @param hash Hash identifying the file we are referring to
+     * @param block_nodes List of pairs {block: nodes that have that block available}
+     */
     void weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<Ip>>>& block_nodes);
     Ip selectNode(std::vector<Ip>& available_nodes);
 

@@ -128,6 +128,37 @@ void Client::initUploadLoop() {
 	answererThread.detach();
 }
 
+std::vector<std::pair<uint32_t, std::vector<Ip>>> getBlockFiles(std::vector<FS_Track::PostFileBlocksData>& data, uint32_t& maxSize){
+    uint32_t size;
+    for(auto& nodeData : data){
+        size = nodeData.block_numbers.size();
+        maxSize = std::max(maxSize, size);
+    }
+
+    std::vector<std::pair<uint32_t, std::vector<Ip>>> ans = std::vector<std::pair<uint32_t, std::vector<Ip>>>(maxSize);
+
+    for(uint32_t i = 0; i < maxSize; i++){
+        ans.emplace_back(i, std::vector<Ip>());
+    }
+
+    for(auto& nodeData : data){
+        size = nodeData.block_numbers.size();
+
+        for(uint32_t i = 0; i < size; i++){
+            if(!nodeData.block_numbers.at(i)) continue;
+
+            struct sockaddr_in addr;
+            addr.sin_addr = nodeData.ip;
+            addr.sin_port = htons(UDP_PORT);
+            addr.sin_family = AF_INET;
+
+            ans.at(i).second.emplace_back(addr);
+        }
+    }
+
+    return ans;
+}
+
 void Client::commandParser(const char * dir) {
 	std::string input;
     std::string command;
@@ -169,17 +200,13 @@ void Client::commandParser(const char * dir) {
                 continue;
             }
 
+            uint32_t maxSize = 0;
+            std::vector<std::pair<uint32_t, std::vector<Ip>>> block_nodes = getBlockFiles(receivedData, maxSize);
+
 			//criar bitMap vazio para ficheiro que se fez get
-			regNewFile(dir, filename.c_str(), 500); // !!!!!!!!!!!! mudar 500 para valor em bytes do ficheiro, recebido do server
+			regNewFile(dir, filename.c_str(), maxSize); // !!!!!!!!!!!! mudar 500 para valor em bytes do ficheiro, recebido do server
 
-            for(auto& postData : receivedData) {
-                std::cout << postData.ip.s_addr << std::endl;
-			}
-
-			// FS_Track::PostFileBlocksData firstNode = receivedData.front(); // para já, faz-se get de primeiro nodo que servidor devolve
-
-			// BlockRequestData reqMsg = 
-
+            weightedRoundRobin(hash, block_nodes);
         } else {
             printf("Invalid command\n");
         }
