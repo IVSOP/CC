@@ -24,6 +24,11 @@ struct FS_Transfer_Info {
 		addr.sin_family = AF_INET;
 		addr.sin_port = htons(UDP_PORT);
 	}
+
+    FS_Transfer_Info(FS_Transfer_Packet& packet, uint32_t ip, const time_t& timestamp){
+
+    }
+
     time_t timestamp;
     struct sockaddr_in addr;
     FS_Transfer_Packet packet;
@@ -84,8 +89,8 @@ struct Client {
 
     void regDirectory(char* directory);
     void regFile(const char* dir, char* fn);
-    void weightedRoundRobin(uint64_t hash, std::unordered_map<uint32_t , std::vector<uint32_t>>& available_nodes, std::unordered_map<uint32_t, uint32_t>& nodes_requested_blocks);
-    uint32_t selectNode(std::vector<uint32_t>& block_nodes, std::unordered_map<uint32_t, uint32_t>& nodes_requested_blocks);
+    void Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<struct sockaddr_in>>>& block_nodes);
+    struct sockaddr_in selectNode(std::vector<uint32_t>& block_nodes);
 
     ClientTCPSocket socketToServer;
     NodeUDPSocket udpSocket; // usamos apenas 1 socket para tudo
@@ -106,6 +111,15 @@ struct Client {
 
     //dispatch table
     std::unordered_map<uint8_t,FS_Transfer_Packet_handler> dispatchTable;
+
+    // Keep nodes priority updated (map <ip, priority>)
+    std::unordered_map<struct sockaddr_in, uint32_t> nodes_priority;
+
+    struct ip{
+        struct sockaddr_in ip;
+
+        
+    }
 
     //inicializados só uma vez, alterados com o decorrer
     FS_Transfer_Info dataFinal;
