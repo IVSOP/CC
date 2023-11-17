@@ -16,7 +16,7 @@
 template<typename T, size_t len>
 class BoundedBuffer {
 public:
-    BoundedBuffer() : size(0) {}
+    BoundedBuffer() : size(0), mutex(), notFull(), notEmpty() {}
 
     ~BoundedBuffer() = default;
 
