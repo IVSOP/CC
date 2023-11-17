@@ -6,7 +6,6 @@
 #include "checksum.h"
 #include "errors.h"
 #include "client.h"
-#include "cmdline.h"
 #include "socket_common.h"
 
 
