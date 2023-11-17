@@ -5,13 +5,15 @@
 #include <sys/stat.h> // TODO
 #include <algorithm>
 #include <ctime>
+#include <condition_variable>
 
 #define SERVER_IP "0.0.0.0"
 #define FILENAME_BUFFER_SIZE 300
 #define BUFFER_SIZE 1500
 
 Client::Client() // por default sockets aceitam tudo
-        : socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), dispatchTable(), nodes_priority()
+        : socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), dispatchTable(), 
+		nodes_tracker(), node_sent_reg(), nodes_priority()
 {
     // register
     initUploadLoop();
@@ -21,7 +23,8 @@ Client::Client() // por default sockets aceitam tudo
 }
 
 Client::Client(char* dir) // por default sockets aceitam tudo
-: socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority()
+	: socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), 
+	nodes_tracker(), node_sent_reg(), nodes_priority()
 {
     // register
     initUploadLoop();
@@ -32,7 +35,8 @@ Client::Client(char* dir) // por default sockets aceitam tudo
 }
 
 Client::Client(char* dir, const std::string &IPv4)
-: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority()
+	: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), 
+	nodes_tracker(), node_sent_reg(), nodes_priority()
 {
     // register
     initUploadLoop();
@@ -45,7 +49,7 @@ Client::Client(char* dir, const std::string &IPv4)
 Client::~Client() {
     udpSocket.closeSocket();
 }
-
+    
 void printPacket(FS_Transfer_Info& info) {
 	printf("checksum:%u (it is %s), opc: %u size: %u id: %lu\ndata as string: %s\n", info.packet.checksum,
 		info.packet.calculateChecksum() == info.packet.checksum ? "correct" : "wrong",
@@ -59,8 +63,8 @@ void Client::readLoop() {
 	FS_Transfer_Info info;
 	while (true) {
 		udpSocket.receiveData(&info.packet, FS_TRANSFER_PACKET_SIZE, &info.addr);
-		// falta timestamp!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		std::time(&info.timestamp); // acho que isto funcemina?
+		
+		info.timestamp = std::time(&info.timestamp); // acho que isto funcemina?
 		inputBuffer.push(info);
 
 		puts("packet received");
@@ -87,8 +91,7 @@ void Client::answerRequestsLoop() {
 	FS_Transfer_Packet data;
 	while (true) {
 		info = inputBuffer.pop();
-		data = info.packet;
-
+		updateNodeResponseTime(info);
 		if (data.checkErrors() == false) { // se houver erro nao faz sentido estar a ler o opcode, check tem de ser feito aqui
 			wrongChecksum(info);
 		} else {
@@ -105,13 +108,27 @@ void Client::answerRequestsLoop() {
 	}
 }
 
-//voltar a meter const FS_Transfer_Info depois. Tirei para testes
+//assume-se que UDP é zoom fast e não há delays a espera em buffers
 // push packet to output buffer
 void Client::sendInfo(FS_Transfer_Info &info) {
-	BlockSendData * block = static_cast<BlockSendData *> (info.packet.getData());
-	block->data[(info.packet.getSize() - 4)] = '\0';
-	printf("BlockID: %d data: %s\n",block->blockID,block->data);
+	info.timestamp =  std::time(nullptr); // voltei a atualizar aqui o tempo para ser mais accurate, caguei onde tiver antes definido já
+	regPacketSentTime(info);
 	outputBuffer.push(info);
+}
+
+void Client::regPacketSentTime(FS_Transfer_Info &info) {
+	if (info.packet.getOpcode() == 0) {
+		BlockRequestData * block = static_cast<BlockRequestData *> (info.packet.getData());
+		Ip nodeIp = Ip(info.addr);
+		uint32_t size = info.packet.getSize() / sizeof(uint32_t);
+		for (int i = 0; i < size; i++) {
+			if (nodes_tracker.find(nodeIp) == nodes_tracker.end()) {
+				nodes_tracker[nodeIp] = std::vector<NodesRTT>();
+			}
+			NodeTimes registerTime = NodeTimes(info.packet.getId(), block->getData()[i],info.timestamp);
+			nodes_tracker[nodeIp].receive(registerTime);
+		}
+	}
 }
 
 void Client::initUploadLoop() {
@@ -128,16 +145,16 @@ void Client::initUploadLoop() {
 	answererThread.detach();
 }
 
-std::vector<std::pair<uint32_t, std::vector<Ip>>> getBlockFiles(std::vector<FS_Track::PostFileBlocksData>& data, uint32_t& maxSize){
+std::vector<std::pair<uint32_t, std::vector<Ip>>> getBlockFiles(std::vector<FS_Track::PostFileBlocksData>& data, uint32_t* maxSize){
     uint32_t size;
     for(auto& nodeData : data){
         size = nodeData.block_numbers.size();
-        maxSize = std::max(maxSize, size);
+        *maxSize = std::max(*maxSize, size);
     }
 
-    std::vector<std::pair<uint32_t, std::vector<Ip>>> ans = std::vector<std::pair<uint32_t, std::vector<Ip>>>(maxSize);
+    std::vector<std::pair<uint32_t, std::vector<Ip>>> ans = std::vector<std::pair<uint32_t, std::vector<Ip>>>(*maxSize);
 
-    for(uint32_t i = 0; i < maxSize; i++){
+    for(uint32_t i = 0; i < *maxSize; i++){
         ans.emplace_back(i, std::vector<Ip>());
     }
 
@@ -201,12 +218,26 @@ void Client::commandParser(const char * dir) {
             }
 
             uint32_t maxSize = 0;
-            std::vector<std::pair<uint32_t, std::vector<Ip>>> block_nodes = getBlockFiles(receivedData, maxSize);
+            std::vector<std::pair<uint32_t, std::vector<Ip>>> block_nodes = getBlockFiles(receivedData, &maxSize);
 
 			//criar bitMap vazio para ficheiro que se fez get
 			regNewFile(dir, filename.c_str(), maxSize); // !!!!!!!!!!!! mudar 500 para valor em bytes do ficheiro, recebido do server
 
-            weightedRoundRobin(hash, block_nodes);
+			int tmp = -1;
+			double rtt = 0;
+
+			while (tmp == -1) {
+				tmp = weightedRoundRobin(hash, block_nodes, &rtt);
+				
+				auto now = std::chrono::system_clock::now();
+				std::chrono::milliseconds wait_time((int) ((rtt+10)*5));
+				std::unique_lock<std::mutex> lock(this->receive_blocks_mutex);
+
+				while(true){
+					if(this->receive_blocks_condition.wait_until(lock, now + wait_time) == std::cv_status::timeout) break;
+				}
+			}
+
         } else {
             printf("Invalid command\n");
         }
@@ -321,6 +352,45 @@ void Client::regNewFile(const char* dir, const char* fn, size_t size) {
 	this->fileDescriptorMap.insert({hash, file});
 }
 
+//process a file request
+// void Client::fetchFile(const char * dir, const char * filename, std::vector<FS_Track::PostFileBlocksData> receivedData) {
+
+// 	//criar bitMap vazio para ficheiro que se fez get
+// 	regNewFile(dir, filename, 500); // !!!!!!!!!!!! mudar 500 para valor em bytes do ficheiro, recebido do server
+
+// 	//debug
+// 	for(auto& postData : receivedData) {
+// 		std::cout << postData.ip.s_addr << std::endl;
+// 	}
+	
+// 	uint32_t numberOfBlocks;
+// 	bitMap block_numbers;
+// 	sockaddr_in addr;
+
+// 	//construir
+// 	std::unordered_map<uint32_t, std::vector<Ip>> blocksToIps;
+
+// 	for( const FS_Track::PostFileBlocksData& nodeData: receivedData) {
+// 		numberOfBlocks = nodeData.block_numbers.size();
+// 		for (uint32_t i = 0; i<numberOfBlocks;i++) {
+// 			if (blocksToIps.find(i) == blocksToIps.end()) {
+// 				blocksToIps[i] = std::vector<Ip>();
+// 			}
+// 			addr.sin_addr = nodeData.ip;
+// 			addr.sin_port = UDP_PORT;
+// 			blocksToIps[i].emplace_back(addr);
+// 		}
+// 	}
+
+// 	std::vector<std::pair<uint32_t, std::vector<Ip>>> blockNodes;
+
+// 	for (std::pair<uint32_t, std::vector<Ip>> entry: blocksToIps) {
+// 		blockNodes.emplace_back(entry.first,entry.second);
+// 	}
+
+// 	weightedRoundRobin(getFilenameHash((char *) filename, strlen(filename)), blockNodes);
+// }
+
 //parse requests
 
 void Client::assignDispatchTable() {
@@ -376,7 +446,8 @@ void Client::writeFileBlock(uint64_t fileHash, uint32_t blockN, char * buffer, s
 	}
 }
 
-//interpret block requests
+// destiny Ip must be already set in info!!
+// reads block requested in info, copies file blocks, sends
 void Client::ReqBlockData(FS_Transfer_Info& info) {
 	FS_Transfer_Packet packet = info.packet;
 	// printf("entrou no req\n");
@@ -385,19 +456,19 @@ void Client::ReqBlockData(FS_Transfer_Info& info) {
 	uint32_t * blocks = static_cast <BlockRequestData *> (packet.getData())->getData();
 	char blockData[BLOCK_SIZE];
 	for (uint32_t i = 0; i < reqSize; i++) {
-		printf("processing block: %d\n", blocks[i]);
+		//printf("processing block: %d\n", blocks[i]);
 
 		//obter bloco de ficheiro
 
 		dataSize = getFileBlock(packet.getId(),blocks[i],blockData);
-		printf("data read: %s\n",blockData);
+		//printf("data read: %s\n",blockData);
 		if (dataSize < 0) {
 			perror("Couldn't find block pos in file, skipping..");
 			continue; // se não for encontrado esse bloco do ficheiro, salta para o próximo e ignora
 		}
 
 		//Construir fs_transfer_packet
-		blockSend.setData(blockData,dataSize); //copia duas vezes os dados ??
+		blockSend.setData(blockData,dataSize);
 		blockSend.setId(blocks[i]);
 		dataPacket.setId(packet.getId());
 		dataPacket.setOpcode(1);
@@ -405,13 +476,13 @@ void Client::ReqBlockData(FS_Transfer_Info& info) {
 
 		dataFinal.addr = info.addr; // endereço destino tem de ser passado no info recebido
 		dataFinal.packet = dataPacket;
-
+		dataFinal.timestamp = std::time(nullptr); // tempo definido antes de enviar
 
 		Client::sendInfo(dataFinal);
 	}
 }
 
-//receive block data (previously requested)
+//write to file received block data (previously requested)
 void Client::RespondBlockData(FS_Transfer_Info& info) {
 	FS_Transfer_Packet packet = info.packet;
 	// printf("entrou no respond\n");
@@ -429,34 +500,50 @@ void Client::RespondBlockData(FS_Transfer_Info& info) {
 	}
 }
 
+//compara número de nodos (aka vector<Ip>.size) que podem fornecer um bloco (uint32_t)
 int cmpBlocksAvailability(std::pair<uint32_t , std::vector<Ip>>& a, std::pair<uint32_t , std::vector<Ip>>& b){
 	return a.second.size() - b.second.size();
 }
 
-void Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<Ip>>>& block_nodes){
-    std::unordered_map<Ip, std::vector<uint32_t>> nodes_blocks;
+//args: hash do ficheiro, pares(bloco, nodos que o possuem)
+// define escalonamento de blocos para diferentes nodos
+// tem por base prioridades dos nodos
+// começa por blocos mais raros, até mais comuns
+
+int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<Ip>>>& block_nodes, double* max_rtt){
+    std::unordered_map<Ip, std::vector<uint32_t>> nodes_blocks; //para cada ip quais blocos se vão pedir
     uint32_t maxSize = 0;
+	*max_rtt = 0;
 
-	std::sort(block_nodes.begin(), block_nodes.end(), cmpBlocksAvailability);
+	std::sort(block_nodes.begin(), block_nodes.end(), cmpBlocksAvailability); // blocos mais raros colocados primeiro
 
-    for(auto i = block_nodes.begin(); i != block_nodes.end(); i++){
-        Ip node = selectNode(i->second);
+    for (auto i = block_nodes.begin(); i != block_nodes.end(); i++){
+		
+		if(this->blocksPerFile.at(hash).at(i->first)){
+			block_nodes.erase(i);
+			continue;
+		}
 
-        if(nodes_blocks.find(node) == nodes_blocks.end()){
+        Ip node = selectBestNode(i->second, nodes_blocks);
+
+        if (nodes_blocks.find(node) == nodes_blocks.end()) {
             nodes_blocks.insert({node, std::vector<uint32_t>()});
         }
 
-        nodes_blocks.find(node)->second.emplace_back(i->first);
+        nodes_blocks.find(node)->second.emplace_back(i->first); //colocar nº do bloco em lista de blocos a pedir a um nodo específico
         maxSize = std::max(maxSize, (uint32_t) nodes_blocks.find(node)->second.size());
     }
+
+	if(block_nodes.size() == 0) return 1;
 
     FS_Transfer_Packet packet;
 	FS_Transfer_Info info;
     uint32_t* arr = new uint32_t[maxSize];
 
-    for(auto i = nodes_blocks.begin(); i != nodes_blocks.end(); i++){
+    for (auto i = nodes_blocks.begin(); i != nodes_blocks.end(); i++){
         std::copy(i->second.begin(), i->second.end(), arr);
         ssize_t size = i->second.size() * sizeof(uint32_t);
+		*max_rtt = std::max(*max_rtt, this->nodes_tracker.at(i->first).RTT());
 
         BlockRequestData data = BlockRequestData(arr, size);
 
@@ -464,22 +551,44 @@ void Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, s
 
 		info = FS_Transfer_Info(packet, i->first, std::time(nullptr));
 
-        ReqBlockData(info);
+        Client::sendInfo(info);
     }
 
     delete [] arr;
+
+	return -1;
 }
 
-Ip Client::selectNode(std::vector<Ip>& available_nodes){
+// selecionar nodo com maior prioridade, entre vários que possuem um bloco específico
+// podiamos fazer sort mas por agora fazer assim
+Ip Client::selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<Ip, std::vector<uint32_t>> nodes_blocks){
     uint32_t size = available_nodes.size();
     Ip ans = available_nodes.at(0);
 
-    for(uint32_t i = 1; i < size; i++){
+    for (uint32_t i = 1; i < size; i++) {
         Ip cur = available_nodes.at(i);
 
-        if(this->nodes_priority.at(cur) > this->nodes_priority.at(ans)) ans = cur;
+		if(nodes_blocks.at(cur).size() > MAX_BLOCKS_REQUESTS_PER_NODE) continue;
+
+		if(nodes_blocks.at(ans).size() > MAX_BLOCKS_REQUESTS_PER_NODE) cur = ans;
+
+        else if(this->nodes_priority.at(cur) > this->nodes_priority.at(ans)) ans = cur;
     }
 
     return ans;
 }
 
+void Client::updateNodeResponseTime(FS_Transfer_Info& info) {
+	time_t new_timestamp = std::time(nullptr);
+	Ip nodeIp = Ip(info.addr);
+	if (info.packet.getOpcode() == 1) {
+		BlockSendData * block = static_cast<BlockSendData *> (info.packet.getData());
+		NodeTimes * nodeReg = nodes_tracker[nodeIp].find(info.packet.id, block->blockID);
+		nodeReg->received_time = std::time(nullptr); // set current time as received_time
+		if (nodes_tracker.find(nodeIp) == nodes_tracker.end()) {
+			nodes_tracker[nodeIp] = std::vector<NodesRTT>();
+		}
+		NodeTimes registerTime = NodeTimes(info.packet.getId(), block->getData()[i],info.timestamp);
+		nodes_tracker[nodeIp].receive(registerTime);
+	}
+}
