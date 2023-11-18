@@ -49,7 +49,7 @@ void test_fs_transfer_fields() {
     FS_Transfer_Packet *packet = new FS_Transfer_Packet(2, 524, blocks, 10 * sizeof(uint32_t));
 
     //testar campos do pacote
-    printf("packet opcode: %d, size: %d, hash: %lu, checksum: %d, data: ", packet->getOpcode(), packet->getSize(),
+    printf("packet opcode: %d, size: %d, hash: %llu, checksum: %d, data: ", packet->getOpcode(), packet->getSize(),
            packet->getId(), packet->getChecksum());
 
     uint32_t *testBlockIds = static_cast<BlockRequestData *> (packet->getData())->getData();
@@ -69,7 +69,7 @@ void test_fs_transfer_fields() {
     // setData já atualiza checksum e size
 
     //testar campos
-    printf("packet opcode: %d, size: %d, hash: %lu checksum: %d, data: ", packet->getOpcode(), packet->getSize(),
+    printf("packet opcode: %d, size: %d, hash: %llu checksum: %d, data: ", packet->getOpcode(), packet->getSize(),
            packet->getId(), packet->getChecksum());
 
     char *blockData = static_cast<BlockSendData *> (packet->getData())->getData();
@@ -282,6 +282,59 @@ int nadaaver(int argc, char *argv[]) {
     return 0;
 }
 
+void test_node_reg_packet_times() {
+    Client c;
+
+    // ----- fingir nodo que envia pedido ---------
+    const char* ipAddress = "127.0.0.1";
+    const int port = UDP_PORT;
+
+    sockaddr_in ip;
+    std::memset(&ip, 0, sizeof(ip));
+    ip.sin_family = AF_INET;
+    ip.sin_port = htons(port);
+    inet_pton(AF_INET, ipAddress, &ip.sin_addr);
+
+    uint32_t blockID[] = {2,3};
+    BlockRequestData block = BlockRequestData(blockID,sizeof(blockID));
+    char filename[] = "teste123.txt";
+    FS_Transfer_Packet packet = FS_Transfer_Packet(0,getFilenameHash(filename,strlen(filename)),&block,sizeof(blockID));
+    FS_Transfer_Info info; // pacote com pedido de blocos enviado
+    info.packet = packet;
+    info.addr = ip;
+
+    time_t sentTime = std::time(nullptr);
+    std::cout << "Sent time: " << ctime(&sentTime) << std::endl;
+    c.regPacketSentTime(info,sentTime);
+    c.printFull_node_sent_reg();
+    sleep(3); //esperar 3 seg
+
+    // -- fingir nodo que devolve bloco para pedido --------
+
+    uint32_t blockRequested = 2;
+    char teste[] = "dados";
+    BlockSendData block2 = BlockSendData(blockRequested,teste,sizeof(teste)+ sizeof(uint32_t));
+    FS_Transfer_Packet packet2 = FS_Transfer_Packet(2,getFilenameHash(filename,strlen(filename)),&block2,sizeof(teste) + sizeof(uint32_t));
+    FS_Transfer_Info info2; // pacote com dados de bloco recebidos
+    info2.packet = packet2;
+    info2.addr = ip; //mesmo ip para o qual enviou o pacote antes
+
+    time_t sentTime2 = std::time(nullptr);
+    std::cout << "Sent time2: " << ctime(&sentTime2) << std::endl;
+    c.regPacketSentTime(info,sentTime); // new time shouldn't be recorded for same block of same file
+    sleep(3);
+    time_t receivedTime = std::time(nullptr);
+    std::cout << "Received time: " << ctime(&receivedTime) << std::endl;
+    c.updateNodeResponseTime(info2,receivedTime);
+    c.updateNodeResponseTime(info2,receivedTime); // delivery of same block of same file should be ignored
+    double estimatedRTT = c.nodes_tracker[Ip(ip)].RTT();
+    std::cout << "estimatedRTT: " << estimatedRTT << std::endl;
+    c.printFull_node_sent_reg();
+    c.printFull_nodes_tracker();
+
+
+}
+
 int main(int argc, char *argv[]) {
     if(argc != 2){
         print_error("Not enough arguments");
@@ -291,7 +344,7 @@ int main(int argc, char *argv[]) {
     Client client = Client(argv[1]);
 
     std::cout << "The end" << std::endl;
-
+    //test_node_reg_packet_times();
     // test_file_read_block(argv[1]);
     //test_file_write_block(argv[1]);
     //nadaaver(argc, argv);

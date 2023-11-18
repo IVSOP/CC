@@ -18,7 +18,7 @@ Client::Client() // por default sockets aceitam tudo
     // register
     initUploadLoop();
     assignDispatchTable();
-    commandParser("./files"); // folder standard para ficheiros? importa?
+    //commandParser("./files"); // folder standard para ficheiros? importa?
 	//regDirectory("./files"); // improta?
 }
 
@@ -51,7 +51,7 @@ Client::~Client() {
 }
     
 void printPacket(FS_Transfer_Info& info) {
-	printf("checksum:%u (it is %s), opc: %u size: %u id: %lu\ndata as string: %s\n", info.packet.checksum,
+	printf("checksum:%u (it is %s), opc: %u size: %u id: %llu\ndata as string: %s\n", info.packet.checksum,
 		info.packet.calculateChecksum() == info.packet.checksum ? "correct" : "wrong",
 		info.packet.getOpcode(), info.packet.getSize(), info.packet.id, reinterpret_cast<char *>(&info.packet.data));
 }
@@ -91,7 +91,8 @@ void Client::answerRequestsLoop() {
 	FS_Transfer_Packet data;
 	while (true) {
 		info = inputBuffer.pop();
-		updateNodeResponseTime(info);
+		time_t timeArrived = std::time(nullptr);
+		updateNodeResponseTime(info, timeArrived);
 		if (data.checkErrors() == false) { // se houver erro nao faz sentido estar a ler o opcode, check tem de ser feito aqui
 			wrongChecksum(info);
 		} else {
@@ -111,22 +112,112 @@ void Client::answerRequestsLoop() {
 //assume-se que UDP é zoom fast e não há delays a espera em buffers
 // push packet to output buffer
 void Client::sendInfo(FS_Transfer_Info &info) {
-	info.timestamp =  std::time(nullptr); // voltei a atualizar aqui o tempo para ser mais accurate, caguei onde tiver antes definido já
-	regPacketSentTime(info);
+	time_t receivedTime = std::time(nullptr); // voltei a atualizar aqui o tempo para ser mais accurate, caguei onde tiver antes definido já
+	regPacketSentTime(info, receivedTime);
 	outputBuffer.push(info);
 }
 
-void Client::regPacketSentTime(FS_Transfer_Info &info) {
+//registar tempo de envio de um pacote
+void Client::regPacketSentTime(FS_Transfer_Info &info, time_t& timestamp) {
 	if (info.packet.getOpcode() == 0) {
 		BlockRequestData * block = static_cast<BlockRequestData *> (info.packet.getData());
 		Ip nodeIp = Ip(info.addr);
-		uint32_t size = info.packet.getSize() / sizeof(uint32_t);
+		int size = info.packet.getSize() / sizeof(uint32_t); //tamanho do array
 		for (int i = 0; i < size; i++) {
-			if (nodes_tracker.find(nodeIp) == nodes_tracker.end()) {
-				nodes_tracker[nodeIp] = std::vector<NodesRTT>();
-			}
-			NodeTimes registerTime = NodeTimes(info.packet.getId(), block->getData()[i],info.timestamp);
-			nodes_tracker[nodeIp].receive(registerTime);
+			printf("processing block: %d\n", block->getData()[i]);
+			insert_regPacket(nodeIp,info.packet.id,block->getData()[i],timestamp);
+			
+		}
+	}
+}
+
+//registar RTT aquando da chegada de pacote pedido
+void Client::updateNodeResponseTime(FS_Transfer_Info& info, time_t& timeArrived) {
+	time_t * timeSent = nullptr;
+	Ip nodeIp = Ip(info.addr);
+	if (info.packet.getOpcode() == 2) { // se pacote recebido for dados de bloco pedido
+		BlockSendData * block = static_cast<BlockSendData *> (info.packet.getData());
+		timeSent = find_remove_regPacket(nodeIp,info.packet.id,block->blockID);
+		if (timeSent != nullptr) // se registo de bloco recebido ainda existe, aka não estamos a receber dados de bloco duplicado
+			insert_regRTT(nodeIp,*timeSent,timeArrived); // atualizar lista de RTT do nodo com novo RTT
+	}
+	free(timeSent);
+}
+
+//inserts packet into node_sent_reg
+void Client::insert_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, time_t& startTime) {
+	// Se nodo não existir, criar mapa novo
+	if (node_sent_reg.find(nodeIp) == node_sent_reg.end()) {
+		std::unordered_map<std::pair<uint64_t, uint32_t>, time_t, KeyHash> innerMap = std::unordered_map<std::pair<uint64_t, uint32_t>, time_t, KeyHash>();
+		node_sent_reg.emplace(nodeIp, innerMap);
+	} 
+
+	auto& innerMap = node_sent_reg[nodeIp];
+
+	// Se par não existe para esse nodo, criar
+	std::pair<uint64_t, uint32_t> pair = std::make_pair(file,blockN);
+	if (innerMap.find(pair) == innerMap.end()) {
+		innerMap.insert({pair,startTime});
+	}
+	//Se já existe par, está a pedir repetidamente um bloco -> Mantemos tempo mais antigo de pedido de bloco para o cálculo do RTT
+}
+
+//finds packet in node_sent_reg and removes it if found
+// returns null if not found
+time_t * Client::find_remove_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN) {
+	printf("entered find_remove\n");
+	time_t * result = nullptr;
+	//se existir dados para nodo, e respetivo par
+	auto outerIt = node_sent_reg.find(nodeIp);
+
+	if (outerIt != node_sent_reg.end()) { // se nodo existir (desnecessario mas so por seguranca)
+		std::unordered_map<std::pair<uint64_t, uint32_t>, time_t, KeyHash>& innerMap = outerIt->second;
+		std::pair<uint64_t, uint32_t> pair = {file,blockN};
+		auto innerIt = innerMap.find(pair);
+		if (innerIt != innerMap.end()) {// se par existir -> significa que é primeira vez que este bloco é recebido
+			result = new time_t();
+			*result = innerIt->second;
+			innerMap.erase(pair); //dá para receber o iterador na posição atual como argumento 
+		}
+	}
+	return result;
+}
+
+//insere novo valor em nodes_tracker
+void Client::insert_regRTT(const Ip& nodeIp, time_t& timeSent, time_t& timeReceived) {
+	time_t timeDiff = timeReceived - timeSent;
+	if (nodes_tracker.find(nodeIp) == nodes_tracker.end()) {
+		nodes_tracker.insert({nodeIp,NodesRTT()});
+	}
+	nodes_tracker[nodeIp].receive(timeDiff);
+}
+
+void Client::printFull_node_sent_reg() {
+	std::cout << "FULL PRINT FOR NODE_SENT_REG----" << std::endl;
+	for( const auto& outerPair: node_sent_reg) {
+		const Ip& ip = outerPair.first;
+ 		std::cout << "IP: " << inet_ntoa(ip.addr.sin_addr) << ", Port: " << ntohs(ip.addr.sin_port) << std::endl;
+
+		for(const auto& innerPair: outerPair.second) {
+			const std::pair<uint64_t, uint32_t>& key = innerPair.first;
+			const time_t& value = innerPair.second;
+			std::cout << "  Key: {" << key.first << ", " << key.second << "}, Value: " << ctime(&value) << std::endl;
+		}
+	}
+}
+
+void Client::printFull_nodes_tracker() {
+	std::cout << "FULL PRINT FOR NODES_TRACKER----" << std::endl;
+	for (const auto& outerPair: nodes_tracker) {
+		const Ip& ip = outerPair.first;
+		std::cout << "IP: " << inet_ntoa(ip.addr.sin_addr) << ", Port: " << ntohs(ip.addr.sin_port) << std::endl;
+
+		const NodesRTT& rtts = outerPair.second;
+		for (uint32_t i=0;i<rtts.size;i++) {
+			std::cout << " " << ctime(rtts.arr + i) << std::endl;
+		}
+		for (uint32_t i=0;i<NODES_RTT_TRACK_SIZE-rtts.size;i++) {
+			std::cout << "no data " << std::endl;
 		}
 	}
 }
@@ -567,11 +658,11 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 
         Client::sendInfo(info);
 		// lock por seguranca, pode acontecer que por azar thread de input decrementou este numero
-		wtf e se mandarmos
-		nao recebermos
-		tivermos a fazer outro pedido
-		e de repente 
-		falta mexer na propria thread de respostas, nao vou fazer por agora
+		// wtf e se mandarmos
+		// nao recebermos
+		// tivermos a fazer outro pedido
+		// e de repente 
+		// falta mexer na propria thread de respostas, nao vou fazer por agora
 		std::unique_lock<std::mutex> lock(this->pendingBlocksMutex);
 		this->numPendingBlocks ++;
     }
@@ -598,19 +689,4 @@ Ip Client::selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<I
     }
 
     return ans;
-}
-
-void Client::updateNodeResponseTime(FS_Transfer_Info& info) {
-	time_t new_timestamp = std::time(nullptr);
-	Ip nodeIp = Ip(info.addr);
-	if (info.packet.getOpcode() == 1) {
-		BlockSendData * block = static_cast<BlockSendData *> (info.packet.getData());
-		NodeTimes * nodeReg = nodes_tracker[nodeIp].find(info.packet.id, block->blockID);
-		nodeReg->received_time = std::time(nullptr); // set current time as received_time
-		if (nodes_tracker.find(nodeIp) == nodes_tracker.end()) {
-			nodes_tracker[nodeIp] = std::vector<NodesRTT>();
-		}
-		NodeTimes registerTime = NodeTimes(info.packet.getId(), block->getData()[i],info.timestamp);
-		nodes_tracker[nodeIp].receive(registerTime);
-	}
 }

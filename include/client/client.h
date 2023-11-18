@@ -16,7 +16,7 @@
 #define CLIENT_INPUT_BUFFER_SIZE 10
 #define CLIENT_OUTPUT_BUFFER_SIZE 10
 #define MAX_BLOCKS_REQUESTS_PER_NODE 200
-#define NODES_RTT_TRACK_SIZE 32
+#define NODES_RTT_TRACK_SIZE 16
 // Struct to store sockaddr_in structs
 
 struct Ip {
@@ -37,25 +37,47 @@ struct Ip {
     }
 };
 
-//Guarda informação de tempo em que ficheiro e bloco foi pedido
-struct NodeTimes {
-    uint64_t hash;
-    uint32_t blockNumber;
-    time_t timeSent;
-    time_t received_time;
+//hash function for unordered_map pair structure
+struct KeyHash {
+    std::size_t operator()(const std::pair<uint64_t, uint32_t>& p) const {
+        // A simple hash combining technique
+        // Using bitwise XOR to combine hash values
+        std::hash<uint64_t> hash1;
+        std::hash<uint32_t> hash2;
 
-    NodeTimes();
-    NodeTimes(uint64_t hash, uint32_t blockNumber, time_t timeSent) {
-        this->hash = hash;
-        this->blockNumber = blockNumber;
-        this->timeSent = timeSent;
-        //this->received_time -- to be filled on return
-    }
-
-    time_t diffTime(){
-        return received_time - timeSent;
+        // Combine the hash values using XOR (^)
+        return hash1(p.first) ^ (hash2(p.second) + 0x9e3779b9 + (hash1(p.first) << 6) + (hash1(p.first) >> 2));
     }
 };
+
+//has function for unordered_map Ip structure
+// struct IpHash {
+//     std::size_t operator()(const Ip& ip) const {
+//         // Combine hash values of the address components
+//         std::size_t hash = 0;
+//         hash ^= std::hash<uint32_t>{}(ip.addr.sin_addr.s_addr);
+//         hash ^= std::hash<uint16_t>{}(ip.addr.sin_port);
+//         return hash;
+//     }
+// };
+
+//Guarda informação de tempo em que ficheiro e bloco foi pedido
+// struct NodeTimes {
+//     uint64_t hash;
+//     uint32_t blockNumber;
+//     time_t timeSent;
+//     time_t received_time;
+
+//     NodeTimes();
+//     NodeTimes(uint64_t hash, uint32_t blockNumber, time_t timeSent) {
+//         this->hash = hash;
+//         this->blockNumber = blockNumber;
+//         this->timeSent = timeSent;
+//         //this->received_time -- to be filled on return
+//     }
+
+
+// };
 
 namespace std {
     template <>
@@ -152,7 +174,6 @@ struct Client {
     void writeFileBlock(uint64_t fileHash, uint32_t blockN, char * buffer, size_t size);
 
 	void wrongChecksum(const FS_Transfer_Info &info) {
-    std::vector<std::pair<uint32_t, std::vector<Ip>>> convertBlocksOfNodes(std::vector<FS_Track::PostFileBlocksData> data);
 		// ....................
 	}
 
@@ -169,10 +190,13 @@ struct Client {
     Ip selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<Ip, std::vector<uint32_t>> nodes_blocks);
 
     // Node scheduling -----------
-    void regPacketSentTime(FS_Transfer_Info& info);
-    void updateNodeResponseTime(FS_Transfer_Info& info);
-
-
+    void regPacketSentTime(FS_Transfer_Info& info, time_t& sentTimestamp);
+    void updateNodeResponseTime(FS_Transfer_Info& info, time_t& arrivedTimestamp);
+    void insert_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, time_t& startTime);
+    time_t * find_remove_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN);
+    void insert_regRTT(const Ip& nodeIp, time_t& timeSent, time_t& timeReceived);
+    void printFull_node_sent_reg();
+    void printFull_nodes_tracker();
 
     ClientTCPSocket socketToServer;
     NodeUDPSocket udpSocket; // usamos apenas 1 socket para tudo
@@ -196,56 +220,34 @@ struct Client {
     std::unordered_map<uint8_t,FS_Transfer_Packet_handler> dispatchTable;
 
     struct NodesRTT {
-        NodeTimes* arr[NODES_RTT_TRACK_SIZE]; //Rtt
+        time_t arr[NODES_RTT_TRACK_SIZE]; //Rtt
         uint32_t curr;
+        uint32_t size;
 
         NodesRTT() {
-            for (int i=0; i< NODES_RTT_TRACK_SIZE; i++) {
-                arr[i] = nullptr;
-            }
             curr = 0;
-        }
-        
-        //depois dar free do arr
-        NodesRTT(NodeTimes arrGiven[], uint32_t size) {
-            memcpy(arr,arrGiven, size * sizeof(NodeTimes));
-            for (int i = size; i < NODES_RTT_TRACK_SIZE - size; i++) {
-                arr[i] = nullptr;
-            }
-            curr = size % NODES_RTT_TRACK_SIZE;
+            size = 0;
         }
 
-        NodeTimes * find(uint64_t hash, uint32_t blockN) {
-            NodeTimes * nt = nullptr;
-            for (int i = 0; i < NODES_RTT_TRACK_SIZE; i++) {
-                nt = arr[i];
-                if (nt != nullptr && nt->hash == hash && nt->blockNumber == blockN) {
-                    break;
-                }
-            }
-            return nt;
-        }
-
-        void receive(NodeTimes& time){
-            *(this->arr[curr]) = time;
-            curr = (curr + 1) % curr;
+        void receive(time_t& timeDiff){
+            this->arr[curr] = timeDiff;
+            curr = (curr + 1) % NODES_RTT_TRACK_SIZE;
+            if (size < NODES_RTT_TRACK_SIZE) size++; //para saber quais posições têm dados a sério
         }
 
         double RTT(){
-            double total = 0;
-            for(int i = 0; i < NODES_RTT_TRACK_SIZE; i++){
-                if (arr[i] != nullptr) {
-                    total += arr[i]->diffTime();
-                }
+            time_t total = 0;
+            for(uint32_t i = 0; i < size; i++){
+                total += arr[i];
             }
-            return ((double) total / NODES_RTT_TRACK_SIZE);
+            return ((double) total / size);
         }
     };
 
     // Node scheduling 
     std::unordered_map<Ip, NodesRTT> nodes_tracker; // tracks last x amount of RTTs
     // std::unordered_map<std::pair<uint64_t, uint32_t>, >> nodes_regTimes; // tracks current timestamps for sent block requets
-    std::unordered_map<Ip, std::unordered_map<std::pair<uint64_t,uint32_t>,NodeTimes>> node_sent_reg;// tracks timestamps for different node requests
+    std::unordered_map<Ip, std::unordered_map<std::pair<uint64_t,uint32_t>,time_t, KeyHash>> node_sent_reg;// tracks timestamps for different node requests
 
     // Keep nodes priority updated (map <Ip, priority>)
     std::unordered_map<Ip, uint32_t> nodes_priority; // priority given to each node
