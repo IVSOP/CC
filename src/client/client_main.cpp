@@ -148,7 +148,7 @@ void test_file_read_block(char * dir) {
     sleep(1000);
 }
 
-int nadaaver(int argc, char *argv[]) {
+int nadaaver() {
 
     /*
 	if (argc == 1) {
@@ -303,13 +303,17 @@ void test_node_reg_packet_times() {
     info.packet = packet;
     info.addr = ip;
 
-    time_t sentTime = std::time(nullptr);
-    std::cout << "Sent time: " << ctime(&sentTime) << std::endl;
-    c.regPacketSentTime(info,sentTime);
-    c.printFull_node_sent_reg();
-    sleep(3); //esperar 3 seg
+    sys_nanoseconds sentTime = std::chrono::system_clock::now();
+    std::cout << "Sent time: " << std::endl;
+    c.printTimePoint(sentTime);
 
-    // -- fingir nodo que devolve bloco para pedido --------
+    // enviar pedido de bloco ---
+
+    c.regPacketSentTime(info,sentTime); 
+    c.printFull_node_sent_reg();
+
+    //esperar 3 seg --
+    sleep(3); 
 
     uint32_t blockRequested = 2;
     char teste[] = "dados";
@@ -319,20 +323,35 @@ void test_node_reg_packet_times() {
     info2.packet = packet2;
     info2.addr = ip; //mesmo ip para o qual enviou o pacote antes
 
-    time_t sentTime2 = std::time(nullptr);
-    std::cout << "Sent time2: " << ctime(&sentTime2) << std::endl;
+    sys_nanoseconds sentTime2 = std::chrono::system_clock::now();
+    std::cout << "\nSent time2: " << std::endl;
+    c.printTimePoint(sentTime2);
+
+    // enviar mesmo pedido ---
     c.regPacketSentTime(info,sentTime); // new time shouldn't be recorded for same block of same file
-    sleep(3);
-    time_t receivedTime = std::time(nullptr);
-    std::cout << "Received time: " << ctime(&receivedTime) << std::endl;
+
+    //esperar 3 seg --
+    sleep(3); 
+
+    // -- fingir que nodo recebe bloco pedido --------
+
+    sys_nanoseconds receivedTime = std::chrono::system_clock::now();
+    std::cout << "\nReceived time: " << std::endl;
+    c.printTimePoint(receivedTime);
+
+    // receber pacote ---
     c.updateNodeResponseTime(info2,receivedTime);
+
+    // receber mesmo pacote ---
     c.updateNodeResponseTime(info2,receivedTime); // delivery of same block of same file should be ignored
     double estimatedRTT = c.nodes_tracker[Ip(ip)].RTT();
-    std::cout << "estimatedRTT: " << estimatedRTT << std::endl;
+
+    //estimatedRTT deve ter em conta diferença entre primeiro pedido e primeira receção
+
+    // estimativa só tem precisao de 7 decimais à direita do segundo??? Acho que é do MAC
+    std::cout << "\nestimatedRTT: " << estimatedRTT << "\n" << std::endl; 
     c.printFull_node_sent_reg();
     c.printFull_nodes_tracker();
-
-
 }
 
 int main(int argc, char *argv[]) {
@@ -341,10 +360,11 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    Client client = Client(argv[1]);
+    // Client client = Client(argv[1]);
 
-    std::cout << "The end" << std::endl;
-    //test_node_reg_packet_times();
+    // std::cout << "The end" << std::endl;
+
+    test_node_reg_packet_times();
     // test_file_read_block(argv[1]);
     //test_file_write_block(argv[1]);
     //nadaaver(argc, argv);

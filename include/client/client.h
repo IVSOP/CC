@@ -11,6 +11,8 @@
 #include "fs_track.h"
 #include "bounded_buffer.h"
 #include "bitmap.h"
+#include "timestamps_common.h"
+#include "socket_common.h"
 #include "checksum.h"
 
 #define CLIENT_INPUT_BUFFER_SIZE 10
@@ -18,24 +20,6 @@
 #define MAX_BLOCKS_REQUESTS_PER_NODE 200
 #define NODES_RTT_TRACK_SIZE 16
 // Struct to store sockaddr_in structs
-
-struct Ip {
-    struct sockaddr_in addr;
-
-    Ip() = default;
-
-    Ip(struct sockaddr_in addr){
-        this->addr = addr;
-    }
-
-    bool operator==(const struct Ip &o) {
-        return addr.sin_addr.s_addr == o.addr.sin_addr.s_addr;
-    }
-
-    bool operator<(const struct Ip &o) {
-        return addr.sin_addr.s_addr < o.addr.sin_addr.s_addr;
-    }
-};
 
 //hash function for unordered_map pair structure
 struct KeyHash {
@@ -59,24 +43,6 @@ struct KeyHash {
 //         hash ^= std::hash<uint16_t>{}(ip.addr.sin_port);
 //         return hash;
 //     }
-// };
-
-//Guarda informação de tempo em que ficheiro e bloco foi pedido
-// struct NodeTimes {
-//     uint64_t hash;
-//     uint32_t blockNumber;
-//     time_t timeSent;
-//     time_t received_time;
-
-//     NodeTimes();
-//     NodeTimes(uint64_t hash, uint32_t blockNumber, time_t timeSent) {
-//         this->hash = hash;
-//         this->blockNumber = blockNumber;
-//         this->timeSent = timeSent;
-//         //this->received_time -- to be filled on return
-//     }
-
-
 // };
 
 namespace std {
@@ -104,17 +70,22 @@ struct FS_Transfer_Info {
 		addr.sin_port = htons(UDP_PORT);
 	}
 
-    FS_Transfer_Info(const FS_Transfer_Packet& packet, const Ip& ip, const time_t& timestamp){
+    FS_Transfer_Info(const FS_Transfer_Packet& packet, const Ip& ip){
+        this->packet = packet;
+        this->addr = ip.addr;
+    };
+
+    FS_Transfer_Info(const FS_Transfer_Packet& packet, const Ip& ip, const sys_nanoseconds timestamp){
         this->packet = packet;
         this->addr = ip.addr;
         this->timestamp = timestamp;
     };
 
-    time_t timestamp;
+    sys_nanoseconds timestamp;
     struct sockaddr_in addr; // has in_addr // in_addr has ip
     FS_Transfer_Packet packet;
 
-    FS_Transfer_Info(FS_Transfer_Packet& packet, uint32_t ip, time_t& timestamp) {
+    FS_Transfer_Info(FS_Transfer_Packet& packet, uint32_t ip, sys_nanoseconds timestamp) {
         this->timestamp = timestamp;
         this->addr.sin_family = AF_INET;
 		this->addr.sin_port = htons(UDP_PORT);
@@ -127,7 +98,7 @@ struct FS_Transfer_Info {
         return packet;
     }
 
-    void setTimestamp(time_t& timsestamp);
+    void setTimestamp(sys_nanoseconds timsestamp);
     void setAdrr(struct sockaddr_in&) const;
     void setPacket(const FS_Transfer_Packet *, ssize_t size);
 
@@ -190,11 +161,14 @@ struct Client {
     Ip selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<Ip, std::vector<uint32_t>> nodes_blocks);
 
     // Node scheduling -----------
-    void regPacketSentTime(FS_Transfer_Info& info, time_t& sentTimestamp);
-    void updateNodeResponseTime(FS_Transfer_Info& info, time_t& arrivedTimestamp);
-    void insert_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, time_t& startTime);
-    time_t * find_remove_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN);
-    void insert_regRTT(const Ip& nodeIp, time_t& timeSent, time_t& timeReceived);
+    void regPacketSentTime(FS_Transfer_Info& info, sys_nanoseconds sentTimestamp);
+    void updateNodeResponseTime(FS_Transfer_Info& info, sys_nanoseconds arrivedTimestamp);
+    void insert_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, const sys_nanoseconds& startTime);
+    bool find_remove_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, sys_nanoseconds * retValue);
+    void insert_regRTT(const Ip& nodeIp, const sys_nanoseconds& timeSent, const sys_nanoseconds& timeReceived);
+
+    void printTimePoint(const sys_nanoseconds& timePoint);
+    void printTimeDiff(const sys_nano_diff& timeDiff);
     void printFull_node_sent_reg();
     void printFull_nodes_tracker();
 
@@ -219,35 +193,10 @@ struct Client {
     //dispatch table
     std::unordered_map<uint8_t,FS_Transfer_Packet_handler> dispatchTable;
 
-    struct NodesRTT {
-        time_t arr[NODES_RTT_TRACK_SIZE]; //Rtt
-        uint32_t curr;
-        uint32_t size;
-
-        NodesRTT() {
-            curr = 0;
-            size = 0;
-        }
-
-        void receive(time_t& timeDiff){
-            this->arr[curr] = timeDiff;
-            curr = (curr + 1) % NODES_RTT_TRACK_SIZE;
-            if (size < NODES_RTT_TRACK_SIZE) size++; //para saber quais posições têm dados a sério
-        }
-
-        double RTT(){
-            time_t total = 0;
-            for(uint32_t i = 0; i < size; i++){
-                total += arr[i];
-            }
-            return ((double) total / size);
-        }
-    };
-
     // Node scheduling 
     std::unordered_map<Ip, NodesRTT> nodes_tracker; // tracks last x amount of RTTs
     // std::unordered_map<std::pair<uint64_t, uint32_t>, >> nodes_regTimes; // tracks current timestamps for sent block requets
-    std::unordered_map<Ip, std::unordered_map<std::pair<uint64_t,uint32_t>,time_t, KeyHash>> node_sent_reg;// tracks timestamps for different node requests
+    std::unordered_map<Ip, std::unordered_map<std::pair<uint64_t,uint32_t>,sys_nanoseconds, KeyHash>> node_sent_reg;// tracks timestamps for different node requests
 
     // Keep nodes priority updated (map <Ip, priority>)
     std::unordered_map<Ip, uint32_t> nodes_priority; // priority given to each node

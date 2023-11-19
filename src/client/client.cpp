@@ -4,8 +4,8 @@
 #include "errors.h"
 #include <sys/stat.h> // TODO
 #include <algorithm>
-#include <ctime>
 #include <condition_variable>
+#include <iomanip>
 
 #define SERVER_IP "0.0.0.0"
 #define FILENAME_BUFFER_SIZE 300
@@ -64,7 +64,7 @@ void Client::readLoop() {
 	while (true) {
 		udpSocket.receiveData(&info.packet, FS_TRANSFER_PACKET_SIZE, &info.addr);
 		
-		info.timestamp = std::time(&info.timestamp); // acho que isto funcemina?
+		info.timestamp = std::chrono::system_clock::now(); // isto ainda é preciso??
 		inputBuffer.push(info);
 
 		puts("packet received");
@@ -91,7 +91,7 @@ void Client::answerRequestsLoop() {
 	FS_Transfer_Packet data;
 	while (true) {
 		info = inputBuffer.pop();
-		time_t timeArrived = std::time(nullptr);
+		sys_nanoseconds timeArrived = std::chrono::system_clock::now();
 		updateNodeResponseTime(info, timeArrived);
 		if (data.checkErrors() == false) { // se houver erro nao faz sentido estar a ler o opcode, check tem de ser feito aqui
 			wrongChecksum(info);
@@ -112,13 +112,13 @@ void Client::answerRequestsLoop() {
 //assume-se que UDP é zoom fast e não há delays a espera em buffers
 // push packet to output buffer
 void Client::sendInfo(FS_Transfer_Info &info) {
-	time_t receivedTime = std::time(nullptr); // voltei a atualizar aqui o tempo para ser mais accurate, caguei onde tiver antes definido já
+	sys_nanoseconds receivedTime = std::chrono::system_clock::now(); // voltei a atualizar aqui o tempo para ser mais accurate, caguei onde tiver antes definido já
 	regPacketSentTime(info, receivedTime);
 	outputBuffer.push(info);
 }
 
 //registar tempo de envio de um pacote
-void Client::regPacketSentTime(FS_Transfer_Info &info, time_t& timestamp) {
+void Client::regPacketSentTime(FS_Transfer_Info &info, sys_nanoseconds timestamp) {
 	if (info.packet.getOpcode() == 0) {
 		BlockRequestData * block = static_cast<BlockRequestData *> (info.packet.getData());
 		Ip nodeIp = Ip(info.addr);
@@ -132,23 +132,22 @@ void Client::regPacketSentTime(FS_Transfer_Info &info, time_t& timestamp) {
 }
 
 //registar RTT aquando da chegada de pacote pedido
-void Client::updateNodeResponseTime(FS_Transfer_Info& info, time_t& timeArrived) {
-	time_t * timeSent = nullptr;
+void Client::updateNodeResponseTime(FS_Transfer_Info& info, sys_nanoseconds timeArrived) {
+	sys_nanoseconds timeSent;
 	Ip nodeIp = Ip(info.addr);
 	if (info.packet.getOpcode() == 2) { // se pacote recebido for dados de bloco pedido
 		BlockSendData * block = static_cast<BlockSendData *> (info.packet.getData());
-		timeSent = find_remove_regPacket(nodeIp,info.packet.id,block->blockID);
-		if (timeSent != nullptr) // se registo de bloco recebido ainda existe, aka não estamos a receber dados de bloco duplicado
-			insert_regRTT(nodeIp,*timeSent,timeArrived); // atualizar lista de RTT do nodo com novo RTT
+		bool found = find_remove_regPacket(nodeIp,info.packet.id,block->blockID, &timeSent);
+		if (found) // se registo de bloco recebido ainda existe, aka não estamos a receber dados de bloco duplicado
+			insert_regRTT(nodeIp,timeSent,timeArrived); // atualizar lista de RTT do nodo com novo RTT
 	}
-	free(timeSent);
 }
 
 //inserts packet into node_sent_reg
-void Client::insert_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, time_t& startTime) {
+void Client::insert_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, const sys_nanoseconds& startTime) {
 	// Se nodo não existir, criar mapa novo
 	if (node_sent_reg.find(nodeIp) == node_sent_reg.end()) {
-		std::unordered_map<std::pair<uint64_t, uint32_t>, time_t, KeyHash> innerMap = std::unordered_map<std::pair<uint64_t, uint32_t>, time_t, KeyHash>();
+		std::unordered_map<std::pair<uint64_t, uint32_t>, sys_nanoseconds, KeyHash> innerMap = std::unordered_map<std::pair<uint64_t, uint32_t>, sys_nanoseconds, KeyHash>();
 		node_sent_reg.emplace(nodeIp, innerMap);
 	} 
 
@@ -163,20 +162,20 @@ void Client::insert_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, 
 }
 
 //finds packet in node_sent_reg and removes it if found
-// returns null if not found
-time_t * Client::find_remove_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN) {
+// returns false if not found
+bool Client::find_remove_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, sys_nanoseconds * retValue) {
 	printf("entered find_remove\n");
-	time_t * result = nullptr;
+	bool result = false;
 	//se existir dados para nodo, e respetivo par
 	auto outerIt = node_sent_reg.find(nodeIp);
 
 	if (outerIt != node_sent_reg.end()) { // se nodo existir (desnecessario mas so por seguranca)
-		std::unordered_map<std::pair<uint64_t, uint32_t>, time_t, KeyHash>& innerMap = outerIt->second;
+		std::unordered_map<std::pair<uint64_t, uint32_t>, sys_nanoseconds, KeyHash>& innerMap = outerIt->second;
 		std::pair<uint64_t, uint32_t> pair = {file,blockN};
 		auto innerIt = innerMap.find(pair);
 		if (innerIt != innerMap.end()) {// se par existir -> significa que é primeira vez que este bloco é recebido
-			result = new time_t();
-			*result = innerIt->second;
+			result = true;
+			*retValue = innerIt->second;
 			innerMap.erase(pair); //dá para receber o iterador na posição atual como argumento 
 		}
 	}
@@ -184,43 +183,69 @@ time_t * Client::find_remove_regPacket(const Ip& nodeIp, uint64_t file, uint32_t
 }
 
 //insere novo valor em nodes_tracker
-void Client::insert_regRTT(const Ip& nodeIp, time_t& timeSent, time_t& timeReceived) {
-	time_t timeDiff = timeReceived - timeSent;
+void Client::insert_regRTT(const Ip& nodeIp, const sys_nanoseconds& timeSent, const sys_nanoseconds& timeReceived) {
 	if (nodes_tracker.find(nodeIp) == nodes_tracker.end()) {
 		nodes_tracker.insert({nodeIp,NodesRTT()});
 	}
-	nodes_tracker[nodeIp].receive(timeDiff);
+	nodes_tracker[nodeIp].receive(timeSent,timeReceived);
 }
 
 void Client::printFull_node_sent_reg() {
-	std::cout << "FULL PRINT FOR NODE_SENT_REG----" << std::endl;
+	std::cout << "\nFULL PRINT FOR NODE_SENT_REG----" << std::endl;
 	for( const auto& outerPair: node_sent_reg) {
 		const Ip& ip = outerPair.first;
  		std::cout << "IP: " << inet_ntoa(ip.addr.sin_addr) << ", Port: " << ntohs(ip.addr.sin_port) << std::endl;
 
 		for(const auto& innerPair: outerPair.second) {
 			const std::pair<uint64_t, uint32_t>& key = innerPair.first;
-			const time_t& value = innerPair.second;
-			std::cout << "  Key: {" << key.first << ", " << key.second << "}, Value: " << ctime(&value) << std::endl;
+			sys_nanoseconds value = innerPair.second;
+			//const std::time_t t_c = std::chrono::system_clock::to_time_t(value);
+			std::cout << "  Key: {" << key.first << ", " << key.second << "}, Value: " << std::endl;
+			printTimePoint(value);
 		}
 	}
 }
 
 void Client::printFull_nodes_tracker() {
-	std::cout << "FULL PRINT FOR NODES_TRACKER----" << std::endl;
+	std::cout << "\nFULL PRINT FOR NODES_TRACKER----\n" << std::endl;
 	for (const auto& outerPair: nodes_tracker) {
 		const Ip& ip = outerPair.first;
 		std::cout << "IP: " << inet_ntoa(ip.addr.sin_addr) << ", Port: " << ntohs(ip.addr.sin_port) << std::endl;
 
 		const NodesRTT& rtts = outerPair.second;
 		for (uint32_t i=0;i<rtts.size;i++) {
-			std::cout << " " << ctime(rtts.arr + i) << std::endl;
+			std::cout << " " << std::endl;
+			printTimeDiff(rtts.arr[i]);
 		}
 		for (uint32_t i=0;i<NODES_RTT_TRACK_SIZE-rtts.size;i++) {
 			std::cout << "no data " << std::endl;
 		}
 	}
 }
+
+void Client::printTimePoint(const sys_nanoseconds& timePoint) {
+    // Convert time point to std::tm
+	auto sys_time_milliseconds = std::chrono::time_point_cast<std::chrono::milliseconds>(timePoint);
+    std::time_t t_c = std::chrono::system_clock::to_time_t(sys_time_milliseconds);
+	std::tm tm = *std::gmtime(&t_c);
+
+    // Get the fractional seconds
+    auto fractional_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(timePoint.time_since_epoch()).count();
+
+    // Print the date with maximum precision
+    std::cout << "Date: " << std::put_time(&tm, "%F %T") << "." << std::setprecision(9) 
+		<< fractional_seconds - static_cast<int>(fractional_seconds) << " UTC" << std::endl;
+}
+
+void Client::printTimeDiff(const sys_nano_diff& timeDiff) {
+    // Convert nanoseconds to seconds for printing
+    auto seconds = std::chrono::duration_cast<std::chrono::duration<double>>(timeDiff).count();
+	 std::cout.precision(15);
+    // Print the duration in seconds with maximum precision
+	std::cout << "Duration in nanoseconds: " << timeDiff.count() << "ns" << std::endl;
+    std::cout << "Duration in seconds: " << seconds << " seconds" << std::endl;
+}
+
 
 void Client::initUploadLoop() {
     // creates a thread that listens in permanently, and writes the data to a buffer
@@ -581,7 +606,7 @@ void Client::ReqBlockData(FS_Transfer_Info& info) {
 
 		dataFinal.addr = info.addr; // endereço destino tem de ser passado no info recebido
 		dataFinal.packet = dataPacket;
-		dataFinal.timestamp = std::time(nullptr); // tempo definido antes de enviar
+		// dataFinal.timestamp = std::time(nullptr); // tempo é definido mesmo antes do push, não necessário aqui
 
 		Client::sendInfo(dataFinal);
 	}
@@ -654,7 +679,7 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 
         packet = FS_Transfer_Packet(0, hash, &data, (uint32_t) size);
 
-		info = FS_Transfer_Info(packet, i->first, std::time(nullptr));
+		info = FS_Transfer_Info(packet, i->first);
 
         Client::sendInfo(info);
 		// lock por seguranca, pode acontecer que por azar thread de input decrementou este numero
