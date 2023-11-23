@@ -62,10 +62,26 @@ Client::~Client() {
     udpSocket.closeSocket();
 }
     
-void printPacket(FS_Transfer_Info& info) {
-	printf("checksum:%u (it is %s), opc: %u size: %u id: %llu\ndata as string: %s\n", info.packet.checksum,
+void printResponsePacket(FS_Transfer_Info& info) {
+	BlockSendData * b = static_cast<BlockSendData *> (info.packet.getData());
+	printf("BlockSendData packet>>>\n");
+	printf("sending to IP: %d, checksum:%u (it is %s), opcode: %u sizeOfData: %u fileId: %llu, blockId: %d\ndata as string: [%s]\n", info.addr.sin_addr.s_addr, info.packet.checksum,
 		info.packet.calculateChecksum() == info.packet.checksum ? "correct" : "wrong",
-		info.packet.getOpcode(), info.packet.getSize(), info.packet.id, reinterpret_cast<char *>(&info.packet.data));
+		info.packet.getOpcode(), info.packet.getSize(), info.packet.getId(), b->blockID,b->data);
+	printf("\n");
+}
+
+void PrintRequestPacket(FS_Transfer_Info& info) {
+	BlockRequestData * b = static_cast<BlockRequestData *> (info.packet.getData());
+	printf("BlockRequestData packet>>>\n");
+	printf("sending to IP: %d, checksum: %u, opcode: %u, sizeOfData: %u, fileId: %lu\n",info.addr.sin_addr.s_addr, info.packet.checksum, 
+		info.packet.getOpcode(),info.packet.getSize(), info.packet.id);
+
+	printf("blockIDs requested: ");
+	for (uint32_t i = 0; i < info.packet.getSize() / 4; i++) {
+		printf("%d ,",b->blockID[i]);
+	}
+	printf("\n");
 }
 
 // read from socket into a buffer, does nothing else
@@ -299,12 +315,14 @@ void Client::initUploadLoop() {
 }
 
 std::vector<std::pair<uint32_t, std::vector<Ip>>> Client::getBlockFiles(std::vector<FS_Track::PostFileBlocksData>& data, uint32_t* maxSize){
-    uint32_t size;
+    uint32_t size = 0;
+
+	//obter o bloco com maior numero entre os recebidos de todos os nodos
     for(auto& nodeData : data){
-        size = nodeData.block_numbers.size();
-        *maxSize = std::max(*maxSize, size);
+        size = std::max(size, static_cast<uint32_t>(nodeData.block_numbers.size()));
     }
 
+	*maxSize = size;
     std::vector<std::pair<uint32_t, std::vector<Ip>>> ans = std::vector<std::pair<uint32_t, std::vector<Ip>>>();
 
     for(uint32_t i = 0; i < *maxSize; i++){
@@ -367,7 +385,7 @@ void Client::commandParser(const char * dir) {
             std::vector<FS_Track::PostFileBlocksData> receivedData = message.postFileBlocksGetData();
 
             if(receivedData.empty()) {
-                std::cout << "No data received" << std::endl;
+				print_error("No data received");
                 continue;
             }
 
@@ -616,6 +634,7 @@ void Client::ReqBlockData(const FS_Transfer_Info& info) {
 		dataFinal.packet = dataPacket;
 		// dataFinal.timestamp = std::time(nullptr); // tempo é definido mesmo antes do push, não necessário aqui
 
+		printResponsePacket(dataFinal); // debug
 		Client::sendInfo(dataFinal);
 	}
 }
@@ -644,12 +663,14 @@ int cmpBlocksAvailability(std::pair<uint32_t , std::vector<Ip>>& a, std::pair<ui
 // começa por blocos mais raros, até mais comuns
 
 int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<Ip>>>& block_nodes, double* max_rtt){
-    std::unordered_map<Ip, std::vector<uint32_t>> nodes_blocks; //para cada ip quais blocos se vão pedir
+    std::unordered_map<Ip, std::vector<uint32_t>> nodes_blocks = std::unordered_map<Ip, std::vector<uint32_t>>(); //para cada ip quais blocos se vão pedir
     uint32_t maxSize = 0;
 	*max_rtt = 0;
 
-	std::sort(block_nodes.begin(), block_nodes.end(), cmpBlocksAvailability); // blocos mais raros colocados primeiro
+	// blocos mais raros colocados primeiro
+	std::sort(block_nodes.begin(), block_nodes.end(), cmpBlocksAvailability); 
 
+	// decidir quais blocos vão para quais nodos
     for (auto i = block_nodes.begin(); i != block_nodes.end(); i++){
 		
 		if(this->blocksPerFile.at(hash).at(i->first)){
@@ -660,7 +681,8 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 
         Ip node = selectBestNode(i->second, nodes_blocks);
 
-		if(nodes_blocks.at(node).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) continue;
+		if (nodes_blocks.find(node) != nodes_blocks.end() // só se nodo existir na estrutura
+			&& nodes_blocks.at(node).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) continue; /// porque é que isto tá aqui?? ;_;_;_;_;
 
         if (nodes_blocks.find(node) == nodes_blocks.end()) {
             nodes_blocks.insert({node, std::vector<uint32_t>()});
@@ -676,11 +698,16 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 	FS_Transfer_Info info;
     uint32_t* arr = new uint32_t[maxSize];
 
+	// enviar blocos 
     for (auto i = nodes_blocks.begin(); i != nodes_blocks.end(); i++){
+
 		std::unique_lock<std::mutex> lock(nodes_tracker_lock);
+
         std::copy(i->second.begin(), i->second.end(), arr);
+
         ssize_t size = i->second.size() * sizeof(uint32_t);
 		*max_rtt = std::max(*max_rtt, this->nodes_tracker.at(i->first).RTT());
+
 		lock.unlock();
 
         BlockRequestData data = BlockRequestData(arr, size);
@@ -688,6 +715,8 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
         packet = FS_Transfer_Packet(0, hash, &data, (uint32_t) size);
 
 		info = FS_Transfer_Info(packet, i->first);
+
+		PrintRequestPacket(info); // debug
 
         Client::sendInfo(info);
 
@@ -707,12 +736,13 @@ Ip Client::selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<I
 
     for (uint32_t i = 1; i < size; i++) {
         Ip cur = available_nodes.at(i);
+		if (nodes_blocks.find(cur) != nodes_blocks.end()) { // caso existam ocorrências do nodo atual na estrutura
+			if(nodes_blocks.at(cur).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) continue;
 
-		if(nodes_blocks.at(cur).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) continue;
+			if(nodes_blocks.at(ans).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) cur = ans;
 
-		if(nodes_blocks.at(ans).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) cur = ans;
-
-        else if(this->nodes_priority.at(cur) > this->nodes_priority.at(ans)) ans = cur;
+        	else if(this->nodes_priority.at(cur) > this->nodes_priority.at(ans)) ans = cur;
+		}
     }
 
     return ans;
