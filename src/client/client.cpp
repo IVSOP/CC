@@ -730,7 +730,7 @@ Ip Client::selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<I
 
 		if(nodes_blocks.find(cur) == nodes_blocks.end() || nodes_blocks.at(cur).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) continue;
 
-		if(nodes_blocks.at(ans).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) cur = ans;
+		if(nodes_blocks.find(cur) == nodes_blocks.end() || nodes_blocks.at(ans).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) cur = ans;
 
         else if(this->nodes_priority.at(cur) > this->nodes_priority.at(ans)) ans = cur;
     }
