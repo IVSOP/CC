@@ -360,7 +360,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    Client client = Client(argv[1], std::string(argv[2]),std::string(argv[3]));
+    Client client = Client(argv[1], std::string(argv[2]), std::string(argv[3]));
 
     std::cout << "The end" << std::endl;
 

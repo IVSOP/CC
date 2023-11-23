@@ -352,22 +352,25 @@ void Client::commandParser(const char * dir) {
 
         if (command == "get") {
             uint64_t hash = getFilenameHash((char*) filename.c_str(), filename.size());
+			printf("Asking for file %s (%u)\n", filename.c_str(), hash);
 
 			FS_Track::sendGetMessage(this->socketToServer, hash);
 
-            message = FS_Track();
+            message = FS_Track(); // cursed
 
             if(!FS_Track::readMessage(message, buffer, BUFFER_SIZE, this->socketToServer)){
-                std::cout << "No message received" << std::endl;
+                print_error("No message received");
                 continue;
             }
 
-            std::cout << (uint32_t) message.fsTrackGetOpcode() << ' ' << (message.fsTrackGetOpt() ? 1 : 0) << ' ' << message.fsTrackGetSize() << ' ' << message.fsTrackGetHash() << std::endl;
+			puts("Received info from server:");
+
+            printf("opcode: %u opt: %u size: %u hash: %u\n", message.fsTrackGetOpcode(), (message.fsTrackGetOpt() ? 1 : 0), message.fsTrackGetSize(), message.fsTrackGetHash());
 
             std::vector<FS_Track::PostFileBlocksData> receivedData = message.postFileBlocksGetData();
 
             if(receivedData.empty()) {
-                std::cout << "No data received" << std::endl;
+                print_error("No data received");
                 continue;
             }
 
@@ -381,14 +384,17 @@ void Client::commandParser(const char * dir) {
     delete [] (uint*) buffer;
 }
 
-void Client::registerWithServer(){
+void Client::registerWithServer() {
+
+	puts("Registering with server");
     std::vector<FS_Track::RegUpdateData> data = std::vector<FS_Track::RegUpdateData>();
     for(const auto& pair: this->blocksPerFile){
-
+		printf("Adding file %u\n", pair.first);
         data.emplace_back(pair.first, pair.second);
     }
 
 	FS_Track::sendRegMessage(this->socketToServer, data);
+	puts("File registration sent");
 }
 
 void Client::regDirectory(char* dirPath){
@@ -408,18 +414,23 @@ void Client::regDirectory(char* dirPath){
 	struct dirent* ent;
 
 
-    // Ignore files "." and ".."
-    for(int i = 0; i < 2; i++) ent = readdir(dir);
-
     while((ent = readdir(dir)) != nullptr){
-        this->regFile(directory.c_str(), ent->d_name);
+    	// Ignore files "." and ".."
+		// VERY UNSAFE, BANDAID FIX, will probably crash for files with 1 char
+		// ir pelo tipo em vez do nome??
+		if (strcmp(ent->d_name, ".") == 0) {
+			// ...
+		} else if (strcmp(ent->d_name, "..") == 0) {
+			// ...
+		} else {
+        	this->regFile(directory.c_str(), ent->d_name);
+		}
     }
 }
 
-void Client::regFile(const char* dir, char* fn){
+void Client::regFile(const char* dir, char* fn) {
     char filePath[FILENAME_BUFFER_SIZE];
     snprintf(filePath, FILENAME_BUFFER_SIZE, "%s%s", dir, fn);
-	// printf("file: %s\n",filePath);
 
 	FILE* file = fopen(filePath, "r");
 
@@ -450,6 +461,7 @@ void Client::regFile(const char* dir, char* fn){
 	this->currentBlocksInEachFile.insert({hash,totalBlocks});
 	this->fileDescriptorMap.insert({hash, file});
 
+	printf("file: %s hash %u\n", filePath, hash);
 }
 
 //registar ficheiro novo que se faz GET nas estruturas de ficheiros do cliente
@@ -485,9 +497,17 @@ void Client::regNewFile(const char* dir, const char* fn, size_t size) {
 
 //process a file request
 void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, std::vector<FS_Track::PostFileBlocksData>& receivedData) {
-
+	puts("Getting the file");
 	uint32_t maxSize = 0;
+	// par <este bloco, estes nodos>
 	std::vector<std::pair<uint32_t, std::vector<Ip>>> block_nodes = getBlockFiles(receivedData, &maxSize);
+	for (std::pair<uint32_t, std::vector<Ip>> &pair : block_nodes) {
+		printf("block %u owned by: ", pair.first);
+		for (Ip &ip : pair.second) {
+			printf("%s ", inet_ntoa(ip.addr.sin_addr));
+		}
+		puts("\n");
+	}
 
 	// printf("file maxSize: %d", maxSize);
 	// for (auto& nodeData : receivedData) {
