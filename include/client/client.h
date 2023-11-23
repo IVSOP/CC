@@ -162,7 +162,7 @@ struct Client {
      * @return Exit code (sucess or insucess)
      */
     int weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<Ip>>>& block_nodes, double* max_rtt);
-    Ip selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<Ip, std::vector<uint32_t>> nodes_blocks);
+    Ip selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<Ip, std::vector<uint32_t>>& nodes_blocks);
 
     // Node scheduling -----------
     void regPacketSentTime(FS_Transfer_Info& info, sys_nanoseconds sentTimestamp);

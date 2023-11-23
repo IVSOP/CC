@@ -293,7 +293,7 @@ std::vector<std::pair<uint32_t, std::vector<Ip>>> Client::getBlockFiles(std::vec
         *maxSize = std::max(*maxSize, size);
     }
 
-    std::vector<std::pair<uint32_t, std::vector<Ip>>> ans = std::vector<std::pair<uint32_t, std::vector<Ip>>>(*maxSize);
+    std::vector<std::pair<uint32_t, std::vector<Ip>>> ans = std::vector<std::pair<uint32_t, std::vector<Ip>>>();
 
     for(uint32_t i = 0; i < *maxSize; i++){
         ans.emplace_back(i, std::vector<Ip>());
@@ -642,6 +642,7 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 		
 		if(this->blocksPerFile.at(hash).at(i->first)){
 			block_nodes.erase(i);
+            i--;
 			continue;
 		}
 
@@ -688,7 +689,7 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 
 // selecionar nodo com maior prioridade, entre vários que possuem um bloco específico
 // podiamos fazer sort mas por agora fazer assim
-Ip Client::selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<Ip, std::vector<uint32_t>> nodes_blocks){
+Ip Client::selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<Ip, std::vector<uint32_t>>& nodes_blocks){
     uint32_t size = available_nodes.size();
     Ip ans = available_nodes.at(0);
 
