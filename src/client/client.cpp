@@ -13,7 +13,7 @@
 
 Client::Client() // por default sockets aceitam tudo
         : socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), dispatchTable(), 
-		nodes_tracker(), node_sent_reg(), nodes_priority(), pendingBlocksMutex(), pendingBlocksCondition(), numPendingBlocks(0)
+		nodes_tracker(), node_sent_reg(), nodes_priority()
 {
     // register
     initUploadLoop();
@@ -24,7 +24,7 @@ Client::Client() // por default sockets aceitam tudo
 
 Client::Client(char* dir) // por default sockets aceitam tudo
 	: socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), 
-	nodes_tracker(), node_sent_reg(), nodes_priority(), pendingBlocksMutex(), pendingBlocksCondition(), numPendingBlocks(0)
+	nodes_tracker(), node_sent_reg(), nodes_priority()
 {
     // register
     initUploadLoop();
@@ -36,7 +36,7 @@ Client::Client(char* dir) // por default sockets aceitam tudo
 
 Client::Client(char* dir, const std::string &IPv4)
 	: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), 
-	nodes_tracker(), node_sent_reg(), nodes_priority(), pendingBlocksMutex(), pendingBlocksCondition(), numPendingBlocks(0)
+	nodes_tracker(), node_sent_reg(), nodes_priority()
 {
     // register
     initUploadLoop();
@@ -348,22 +348,18 @@ void Client::commandParser(const char * dir) {
 				auto now = std::chrono::system_clock::now();
 				std::chrono::milliseconds wait_time((int) ((rtt+10)*5));
 
-				/* EXPLICACAO
-				WRR vai fazer com que N blocos sejam pedidos. Calculamos um timeout baseado no RTT medio deles todos (acho eu???????????????????????????????????/)
-				Como input esta noutra thread, aqui fica a dormir ate que:
-					- sejam recebidos todos os blocos (numPendingBlocks == 0)
-					- timeout excedido (usamos wait_until em vez de wait) 
-				*/
 				// while(true){
 				// 	if(this->receive_blocks_condition.wait_until(lock, now + wait_time) == std::cv_status::timeout) break;
 				// }
 
-				std::unique_lock<std::mutex> lock(this->pendingBlocksMutex);
-				while (this->numPendingBlocks > 0) {
-					if (this->pendingBlocksCondition.wait_until(lock, now + wait_time) == std::cv_status::timeout) {
-						// houve timeout, fazer cenas e coisas.................................
-					}
-				}
+				// sleep aqui??????
+
+				// std::unique_lock<std::mutex> lock(this->pendingBlocksMutex);
+				// while (this->numPendingBlocks > 0) {
+				// 	if (this->pendingBlocksCondition.wait_until(lock, now + wait_time) == std::cv_status::timeout) {
+				// 		// houve timeout, fazer cenas e coisas.................................
+				// 	}
+				// }
 
 				// aqui esta tudo recebido, fazer cenas e coisas....................................
 			}
@@ -682,14 +678,8 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 		info = FS_Transfer_Info(packet, i->first);
 
         Client::sendInfo(info);
-		// lock por seguranca, pode acontecer que por azar thread de input decrementou este numero
-		// wtf e se mandarmos
-		// nao recebermos
-		// tivermos a fazer outro pedido
-		// e de repente 
-		// falta mexer na propria thread de respostas, nao vou fazer por agora
-		std::unique_lock<std::mutex> lock(this->pendingBlocksMutex);
-		this->numPendingBlocks ++;
+
+		// apaguei daqui!!!!!!!!!!!
     }
 
     delete [] arr;

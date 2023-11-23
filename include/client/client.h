@@ -201,10 +201,6 @@ struct Client {
     // Keep nodes priority updated (map <Ip, priority>)
     std::unordered_map<Ip, uint32_t> nodes_priority; // priority given to each node
 
-    std::mutex pendingBlocksMutex;
-    std::condition_variable pendingBlocksCondition;
-	uint32_t numPendingBlocks; // numero de blocos que pedimos mas ainda nao recebemos. esta associado a lock e condition anteriores
-
     //inicializados só uma vez, alterados com o decorrer
     FS_Transfer_Info dataFinal;
     FS_Transfer_Packet dataPacket;
