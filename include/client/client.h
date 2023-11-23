@@ -19,6 +19,10 @@
 #define CLIENT_OUTPUT_BUFFER_SIZE 10
 #define MAX_BLOCKS_REQUESTS_PER_NODE 200
 #define NODES_RTT_TRACK_SIZE 16
+
+#define NODE_VALUE_SUCCESS 1
+#define NODE_VALUE_WRONG -2
+#define NODE_VALUE_TIMEOUT -5 // onde meter isto??
 // Struct to store sockaddr_in structs
 
 //hash function for unordered_map pair structure
@@ -113,7 +117,7 @@ struct FS_Transfer_Info {
 
 struct Client {
 
-    using FS_Transfer_Packet_handler = void (Client::*) (FS_Transfer_Info&); //typedef para as funções da dispatch table
+    using FS_Transfer_Packet_handler = void (Client::*) (const FS_Transfer_Info&); //typedef para as funções da dispatch table
 
     Client();
     Client(char* dir);
@@ -133,23 +137,23 @@ struct Client {
     void sendRequest();
 	void answerRequestsLoop();
 
-    void fetchFile(const char * dir, const char * filename, std::vector<FS_Track::PostFileBlocksData>);
+    void fetchFile(const char * dir, const char * filename, uint64_t hash, std::vector<FS_Track::PostFileBlocksData>&);
     void sendInfo(FS_Transfer_Info &info);
 
     //parse opcode funcs
-    void ReqBlockData(FS_Transfer_Info& info);
-    void RespondBlockData(FS_Transfer_Info& info);
+    void ReqBlockData(const FS_Transfer_Info& info);
+    void RespondBlockData(const FS_Transfer_Info& info);
 
     void regNewFile(const char* dir, const char* fn, size_t size);
     ssize_t getFileBlock(uint64_t fileHash, uint32_t blockID, char * buffer);
     void writeFileBlock(uint64_t fileHash, uint32_t blockN, char * buffer, size_t size);
 
-	void wrongChecksum(const FS_Transfer_Info &info) {
-		// ....................
-	}
+	void wrongChecksum(const FS_Transfer_Info &info);
+    void rightChecksum(const FS_Transfer_Info& info);
 
     void regDirectory(char* directory);
     void regFile(const char* dir, char* fn);
+    std::vector<std::pair<uint32_t, std::vector<Ip>>> getBlockFiles(std::vector<FS_Track::PostFileBlocksData>& data, uint32_t* maxSize);
 
     /**
      * Select node from who we should request a block through a priority
@@ -166,6 +170,8 @@ struct Client {
     void insert_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, const sys_nanoseconds& startTime);
     bool find_remove_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, sys_nanoseconds * retValue);
     void insert_regRTT(const Ip& nodeIp, const sys_nanoseconds& timeSent, const sys_nanoseconds& timeReceived);
+    uint32_t getNodePriority(const Ip& nodeIp);
+    void updateNodePriority(const Ip& nodeIp, uint32_t value);
 
     void printTimePoint(const sys_nanoseconds& timePoint);
     void printTimeDiff(const sys_nano_diff& timeDiff);
@@ -185,7 +191,7 @@ struct Client {
 	std::unordered_map<uint64_t, bitMap> blocksPerFile;
 
     // juntar ao array de cima maybe
-    std::unordered_map<uint64_t, uint32_t> currentBlocksInEachFile; 
+    std::unordered_map<uint64_t, uint32_t> currentBlocksInEachFile; // usado??
     
     //track file descriptors for each filehash
     std::unordered_map<uint64_t, FILE*> fileDescriptorMap;
@@ -194,12 +200,10 @@ struct Client {
     std::unordered_map<uint8_t,FS_Transfer_Packet_handler> dispatchTable;
 
     // Node scheduling 
+    std::mutex nodes_tracker_lock;
+    std::unordered_map<Ip, uint32_t> nodes_priority; // priority given to each node //começa com prioridade 0
     std::unordered_map<Ip, NodesRTT> nodes_tracker; // tracks last x amount of RTTs
-    // std::unordered_map<std::pair<uint64_t, uint32_t>, >> nodes_regTimes; // tracks current timestamps for sent block requets
     std::unordered_map<Ip, std::unordered_map<std::pair<uint64_t,uint32_t>,sys_nanoseconds, KeyHash>> node_sent_reg;// tracks timestamps for different node requests
-
-    // Keep nodes priority updated (map <Ip, priority>)
-    std::unordered_map<Ip, uint32_t> nodes_priority; // priority given to each node
 
     //inicializados só uma vez, alterados com o decorrer
     FS_Transfer_Info dataFinal;

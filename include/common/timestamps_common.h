@@ -14,7 +14,6 @@ template <class Duration>
     using sys_nanoseconds = sys_time<std::chrono::nanoseconds>;
     using sys_nano_diff = std::chrono::nanoseconds;
 
-
     struct NodesRTT {
         sys_nano_diff arr[NODES_RTT_TRACK_SIZE]; //Rtt
         uint32_t curr;

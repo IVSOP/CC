@@ -122,7 +122,7 @@ void test_file_write_block(char * dir) {
     uint32_t blockID[] = {2,3};
     BlockRequestData block = BlockRequestData(blockID,sizeof(blockID));
     char filename[] = "teste.txt";
-    c.regNewFile(dir,filename, 1024*4); // registar ficheiro
+    c.regNewFile(dir,filename, 1024*2 + 15); // registar ficheiro
     FS_Transfer_Packet packet = FS_Transfer_Packet(0,getFilenameHash(filename,strlen(filename)),&block,sizeof(blockID));
     FS_Transfer_Info info;
     info.packet = packet;
@@ -138,7 +138,7 @@ void test_file_read_block(char * dir) {
     uint32_t blockRequested = 1;
     BlockSendData block = BlockSendData(blockRequested,teste,sizeof(teste)+ sizeof(uint32_t));
     char filename[] = "teste.txt";
-    c.regNewFile(dir,filename,1024*4); // registar ficheiro
+    c.regNewFile(dir,filename,1024*2 + 15); // registar ficheiro
     FS_Transfer_Packet packet = FS_Transfer_Packet(2,getFilenameHash(filename,strlen(filename)),&block,sizeof(teste) + sizeof(uint32_t));
     FS_Transfer_Info info;
     info.packet = packet;
@@ -360,11 +360,11 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    // Client client = Client(argv[1]);
+    Client client = Client(argv[1]);
 
-    // std::cout << "The end" << std::endl;
+    std::cout << "The end" << std::endl;
 
-    test_node_reg_packet_times();
+    //test_node_reg_packet_times();
     // test_file_read_block(argv[1]);
     //test_file_write_block(argv[1]);
     //nadaaver(argc, argv);
