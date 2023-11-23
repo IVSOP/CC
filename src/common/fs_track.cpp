@@ -214,13 +214,9 @@ std::vector<FS_Track::RegUpdateData> FS_Track::regUpdateDataGetData() {
     uint32_t i = 0;
     uint32_t len = vptrToUint32(serializedData, &i);
 
-    if (len == 0) {
-        print_error("No data received");
-
-        return {};
-    }
-
     std::vector<FS_Track::RegUpdateData> deserializedData = std::vector<FS_Track::RegUpdateData>();
+
+    if (len == 0) return deserializedData;
 
     uint64_t file_hash;
 
