@@ -285,11 +285,7 @@ std::vector<FS_Track::PostFileBlocksData> FS_Track::postFileBlocksGetData() {
     // Calculate total number of structs sent
     uint32_t len = vptrToUint32(serializedData, &i);
 
-    if (len == 0) {
-        print_error("No data received");
-
-        return {};
-    }
+    if (len == 0) return deserializedData;
 
     struct in_addr ip = in_addr();
 
