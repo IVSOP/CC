@@ -345,23 +345,7 @@ void Client::commandParser(const char * dir) {
 			while (tmp == -1) {
 				tmp = weightedRoundRobin(hash, block_nodes, &rtt);
 				
-				auto now = std::chrono::system_clock::now();
-				std::chrono::milliseconds wait_time((int) ((rtt+10)*5));
-
-				// while(true){
-				// 	if(this->receive_blocks_condition.wait_until(lock, now + wait_time) == std::cv_status::timeout) break;
-				// }
-
-				// sleep aqui??????
-
-				// std::unique_lock<std::mutex> lock(this->pendingBlocksMutex);
-				// while (this->numPendingBlocks > 0) {
-				// 	if (this->pendingBlocksCondition.wait_until(lock, now + wait_time) == std::cv_status::timeout) {
-				// 		// houve timeout, fazer cenas e coisas.................................
-				// 	}
-				// }
-
-				// aqui esta tudo recebido, fazer cenas e coisas....................................
+				std::this_thread::sleep_for(std::chrono::milliseconds((int) ((rtt+10)*5)));
 			}
 
         } else {
