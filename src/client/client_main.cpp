@@ -355,12 +355,12 @@ void test_node_reg_packet_times() {
 }
 
 int main(int argc, char *argv[]) {
-    if(argc != 2){
+    if(argc != 3){
         print_error("Not enough arguments");
         return -1;
     }
 
-    Client client = Client(argv[1]);
+    Client client = Client(argv[1], argv[2]);
 
     std::cout << "The end" << std::endl;
 
