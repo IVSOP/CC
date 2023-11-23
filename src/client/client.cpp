@@ -46,6 +46,18 @@ Client::Client(char* dir, const std::string &IPv4)
     commandParser(dir);
 }
 
+Client::Client(char* dir, const std::string &svIPv4, const std::string &myIPv4)
+: socketToServer(svIPv4), udpSocket(myIPv4), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_tracker_lock(),
+	nodes_priority(), nodes_tracker(), node_sent_reg()
+{
+	// register
+    initUploadLoop();
+	assignDispatchTable();
+    regDirectory(dir);
+    registerWithServer();
+    commandParser(dir);
+}
+
 Client::~Client() {
     udpSocket.closeSocket();
 }

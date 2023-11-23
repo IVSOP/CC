@@ -122,6 +122,7 @@ struct Client {
     Client();
     Client(char* dir);
 	Client(char* dir, const std::string &IPv4); // para set do server IP
+	Client(char* dir, const std::string &svIPv4, const std::string &myIPv4); // para set do server IP e do IP da interface
 
     ~Client();
 
