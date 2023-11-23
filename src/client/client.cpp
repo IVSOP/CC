@@ -664,7 +664,7 @@ int cmpBlocksAvailability(std::pair<uint32_t , std::vector<Ip>>& a, std::pair<ui
 // começa por blocos mais raros, até mais comuns
 
 int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<Ip>>>& block_nodes, double* max_rtt){
-    std::unordered_map<Ip, std::vector<uint32_t>> nodes_blocks; //para cada ip quais blocos se vão pedir
+    std::unordered_map<Ip, std::vector<uint32_t>> nodes_blocks = std::unordered_map<Ip, std::vector<uint32_t>>(); //para cada ip quais blocos se vão pedir
     uint32_t maxSize = 0;
 	*max_rtt = 0;
 
@@ -728,7 +728,7 @@ Ip Client::selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<I
     for (uint32_t i = 1; i < size; i++) {
         Ip cur = available_nodes.at(i);
 
-		if(nodes_blocks.at(cur).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) continue;
+		if(nodes_blocks.find(cur) == nodes_blocks.end() || nodes_blocks.at(cur).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) continue;
 
 		if(nodes_blocks.at(ans).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) cur = ans;
 
