@@ -636,6 +636,8 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 
         Ip node = selectBestNode(i->second, nodes_blocks);
 
+		if(nodes_blocks.at(node).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) continue;
+
         if (nodes_blocks.find(node) == nodes_blocks.end()) {
             nodes_blocks.insert({node, std::vector<uint32_t>()});
         }
@@ -680,9 +682,9 @@ Ip Client::selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<I
     for (uint32_t i = 1; i < size; i++) {
         Ip cur = available_nodes.at(i);
 
-		if(nodes_blocks.at(cur).size() > MAX_BLOCKS_REQUESTS_PER_NODE) continue;
+		if(nodes_blocks.at(cur).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) continue;
 
-		if(nodes_blocks.at(ans).size() > MAX_BLOCKS_REQUESTS_PER_NODE) cur = ans;
+		if(nodes_blocks.at(ans).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) cur = ans;
 
         else if(this->nodes_priority.at(cur) > this->nodes_priority.at(ans)) ans = cur;
     }
