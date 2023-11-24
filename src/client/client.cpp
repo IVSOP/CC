@@ -495,10 +495,11 @@ void Client::regNewFile(const char* dir, const char* fn, size_t size) {
         return;
     }
 
+	size_t allocSize = ((size-1) * BLOCK_SIZE) + 1;
 	//prealocar ficheiro, escrevendo size bytes no ficheiro // melhor solução???
-	std::vector<char> emptyBuffer(size * BLOCK_SIZE,0);
+	std::vector<char> emptyBuffer(allocSize,0);
 
-	if (std::fwrite(emptyBuffer.data(),1,size * BLOCK_SIZE ,file) != size * BLOCK_SIZE) {
+	if (std::fwrite(emptyBuffer.data(),1,allocSize ,file) != allocSize) {
 		print_error("Error preallocing file for GET");
 		std::fclose(file);
 		return;
