@@ -16,6 +16,7 @@
 #define FS_TRANSFER_PACKET_SIZE sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t) + sizeof(FS_Data)
 
 // enviar dados de um bloco
+// opcode 1
 struct BlockSendData {
     uint32_t blockID;
     char data[BLOCK_SIZE];
@@ -38,6 +39,7 @@ struct BlockSendData {
 };
 
 // pedir blocos
+// opcode 0
 struct BlockRequestData {
     uint32_t blockID[MAX_BLOCKS];
 

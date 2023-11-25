@@ -65,7 +65,7 @@ Client::~Client() {
 void printResponsePacket(FS_Transfer_Info& info) {
 	BlockSendData * b = static_cast<BlockSendData *> (info.packet.getData());
 	printf("BlockSendData packet>>>\n");
-	printf("sending to IP: %d, checksum:%u (it is %s), opcode: %u sizeOfData: %u fileId: %llu, blockId: %d\ndata as string: [%s]\n", info.addr.sin_addr.s_addr, info.packet.checksum,
+	printf("sending to IP: %s, checksum:%u (it is %s), opcode: %u sizeOfData: %u fileId: %llu, blockId: %d\ndata as string: [%s]\n", inet_ntoa(info.addr.sin_addr), info.packet.checksum,
 		info.packet.calculateChecksum() == info.packet.checksum ? "correct" : "wrong",
 		info.packet.getOpcode(), info.packet.getSize(), info.packet.getId(), b->blockID,b->data);
 	printf("\n");
@@ -74,7 +74,7 @@ void printResponsePacket(FS_Transfer_Info& info) {
 void PrintRequestPacket(FS_Transfer_Info& info) {
 	BlockRequestData * b = static_cast<BlockRequestData *> (info.packet.getData());
 	printf("BlockRequestData packet>>>\n");
-	printf("sending to IP: %d, checksum: %u, opcode: %u, sizeOfData: %u, fileId: %lu\n",info.addr.sin_addr.s_addr, info.packet.checksum,
+	printf("sending to IP: %s, checksum: %u, opcode: %u, sizeOfData: %u, fileId: %lu\n",inet_ntoa(info.addr.sin_addr), info.packet.checksum,
 		info.packet.getOpcode(),info.packet.getSize(), info.packet.id);
 
 	printf("blockIDs requested: ");
@@ -171,28 +171,36 @@ void Client::sendInfo(FS_Transfer_Info &info) {
 }
 
 //registar tempo de envio de um pacote
-void Client::regPacketSentTime(FS_Transfer_Info &info, sys_nanoseconds timestamp) {
+void Client::regPacketSentTime(const FS_Transfer_Info &info, sys_nanoseconds timestamp) {
 	if (info.packet.getOpcode() == 0) {
-		BlockRequestData * block = static_cast<BlockRequestData *> (info.packet.getData());
+		BlockRequestData block = info.packet.data.blockRequestData;
 		Ip nodeIp = Ip(info.addr);
 		int size = info.packet.getSize() / sizeof(uint32_t); //tamanho do array
 		for (int i = 0; i < size; i++) {
-			printf("processing block: %d\n", block->getData()[i]);
-			insert_regPacket(nodeIp,info.packet.id,block->getData()[i],timestamp);
-			
+			// printf("processing block: %d\n", block.blockID[i]);
+			insert_regPacket(nodeIp,info.packet.id,block.blockID[i],timestamp);
+			//debug
+			sys_nanoseconds val = this->node_sent_reg[nodeIp][{info.packet.id,block.blockID[i]}];
+			printf("Sent packet %d, start time:\n",block.blockID[i]);
+			printTimePoint(val);
 		}
 	}
 }
 
 //registar RTT aquando da chegada de pacote pedido
-void Client::updateNodeResponseTime(FS_Transfer_Info& info, sys_nanoseconds timeArrived) {
+void Client::updateNodeResponseTime(const FS_Transfer_Info& info, sys_nanoseconds timeArrived) {
 	sys_nanoseconds timeSent;
-	if (info.packet.getOpcode() == 2) { // se pacote recebido for dados de bloco pedido
+	if (info.packet.getOpcode() == 1) { // se pacote recebido for dados de bloco pedido
 		Ip nodeIp = Ip(info.addr);
-		BlockSendData * block = static_cast<BlockSendData *> (info.packet.getData());
-		bool found = find_remove_regPacket(nodeIp,info.packet.id,block->blockID, &timeSent);
-		if (found) // se registo de bloco recebido ainda existe, aka não estamos a receber dados de bloco duplicado
+		BlockSendData block = info.packet.data.blockData;
+		bool found = find_remove_regPacket(nodeIp,info.packet.id,block.blockID, &timeSent);
+		if (found) {// se registo de bloco recebido ainda existe, aka não estamos a receber dados de bloco duplicado
+			printf("Received packet:");
+			printTimePoint(timeSent);
 			insert_regRTT(nodeIp,timeSent,timeArrived); // atualizar lista de RTT do nodo com novo RTT
+			double nodeRTT = this->nodes_tracker[nodeIp].RTT();
+			std::cout << "currentRTT in seconds: " << nodeRTT << std::endl;
+		}
 	}
 }
 
@@ -237,9 +245,10 @@ bool Client::find_remove_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blo
 
 //insere novo valor em nodes_tracker
 void Client::insert_regRTT(const Ip& nodeIp, const sys_nanoseconds& timeSent, const sys_nanoseconds& timeReceived) {
-	if (nodes_tracker.find(nodeIp) == nodes_tracker.end()) {
-		nodes_tracker.insert({nodeIp,NodesRTT()});
-	}
+	// já é inicializado antes, n é preciso aqui
+	// if (nodes_tracker.find(nodeIp) == nodes_tracker.end()) {
+	// 	nodes_tracker.insert({nodeIp,NodesRTT()});
+	// }
 	nodes_tracker[nodeIp].receive(timeSent,timeReceived);
 }
 
@@ -266,6 +275,7 @@ void Client::printFull_nodes_tracker() {
 		std::cout << "IP: " << inet_ntoa(ip.addr.sin_addr) << ", Port: " << ntohs(ip.addr.sin_port) << std::endl;
 
 		const NodesRTT& rtts = outerPair.second;
+		printf("RTTs size: %d\n", rtts.size);
 		for (uint32_t i=0;i<rtts.size;i++) {
 			std::cout << " " << std::endl;
 			printTimeDiff(rtts.arr[i]);
@@ -520,6 +530,7 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 	uint32_t maxSize = 0;
 	// par <este bloco, estes nodos>
 	std::vector<std::pair<uint32_t, std::vector<Ip>>> block_nodes = getBlockFiles(receivedData, &maxSize);
+
 	for (std::pair<uint32_t, std::vector<Ip>> &pair : block_nodes) {
 		printf("block %u owned by: ", pair.first);
 		for (Ip &ip : pair.second) {
@@ -528,17 +539,10 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 		puts("\n");
 	}
 
-	// printf("file maxSize: %d", maxSize);
-	// for (auto& nodeData : receivedData) {
-	// 	printf("\n%d ",nodeData.ip.s_addr);
-	// 	for (auto val : nodeData.block_numbers)
-	// 		std::cout << (val == true) << std::endl;
-	// }
 	//criar bitMap vazio para ficheiro que se fez get
 	regNewFile(dir, filename, maxSize); 
 
 	//inicializar estruturas de nodos
-	//TODO: apagar mais a cima nos regRTT os ifs constantes de adicionar novo nodo, alocar tudo aqui é mais facil
 	for(auto& nodeData : receivedData){
 		struct sockaddr_in addr;
 		addr.sin_addr = nodeData.ip;
@@ -557,10 +561,14 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 
 	while (tmp == -1) {
 		tmp = weightedRoundRobin(hash, block_nodes, &rtt);
-		
+		std::cout << "Iteration maxRTT: " << rtt << std::endl;
 		std::this_thread::sleep_for(std::chrono::milliseconds((int) ((rtt+10)*5)));
 		//se der timeout onde digo isso??
+		updateFileNodesServer(hash);
 	}
+
+	printFull_node_sent_reg();
+	printFull_nodes_tracker();
 
 	std::cout << "File transfer completed\n" << std::endl;
 
@@ -673,6 +681,26 @@ void Client::RespondBlockData(const FS_Transfer_Info& info) {
 	this->currentBlocksInEachFile[fileHash]++;
 }
 
+//atualiza servidor com nodos possuidos atualmente
+void Client::updateFileNodesServer(uint64_t fileHash) {
+	bitMap& fileMap = this->blocksPerFile[fileHash];
+	bool flag = true;
+	int finalIndex = fileMap.size() -1; //índice máxima do vector que vai ser enviado ao servidor
+
+	// calcular índice máximo com true, para enviar só o tamanho necessário ao servidor
+	for (; finalIndex >= 0 && flag; finalIndex--) {
+		if (fileMap[finalIndex]) flag = false;
+	}
+	bitMap mapForServer(fileMap.begin(),fileMap.begin() + finalIndex);
+
+	//Enviar ao servidor
+	puts("Updating with server");
+    std::vector<FS_Track::RegUpdateData> data = std::vector<FS_Track::RegUpdateData>();
+    data.emplace_back(fileHash, mapForServer);
+	FS_Track::sendRegMessage(this->socketToServer, data);
+	puts("File registration sent");
+};
+
 //compara número de nodos (aka vector<Ip>.size) que podem fornecer um bloco (uint32_t)
 int cmpBlocksAvailability(std::pair<uint32_t , std::vector<Ip>>& a, std::pair<uint32_t , std::vector<Ip>>& b){
 	return a.second.size() - b.second.size();
@@ -718,11 +746,13 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 
     for (auto i = nodes_blocks.begin(); i != nodes_blocks.end(); i++){
 		std::unique_lock<std::mutex> lock(nodes_tracker_lock);
+		
         std::copy(i->second.begin(), i->second.end(), arr);
         ssize_t size = i->second.size() * sizeof(uint32_t);
 		*max_rtt = std::max(*max_rtt, this->nodes_tracker.at(i->first).RTT());
-		lock.unlock();
 
+		lock.unlock();
+		
         BlockRequestData data = BlockRequestData(arr, size);
 
         packet = FS_Transfer_Packet(0, hash, &data, (uint32_t) size);

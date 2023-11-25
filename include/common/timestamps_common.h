@@ -4,6 +4,7 @@
 #include <chrono>
 
 #define NODES_RTT_TRACK_SIZE 16
+#define BASE_RTT_TIME std::chrono::seconds(30);
 
 //represent timestamps in nanoseconds
 //sys_nanoseconds represents timepoint -> causes compile time error if used as time duration
@@ -19,10 +20,7 @@ template <class Duration>
         uint32_t curr;
         uint32_t size;
 
-        NodesRTT() {
-            curr = 0;
-            size = 0;
-        }
+        NodesRTT() : curr(0), size(0) {}
 
         void receive(const sys_nanoseconds& timeSent, const sys_nanoseconds& timeReceived){
             sys_nano_diff timeDiff = timeReceived - timeSent;
@@ -38,6 +36,7 @@ template <class Duration>
                 total += arr[i];
             }
             if (size > 0) total = total / size;
+            else total = BASE_RTT_TIME;
             //converti em double para manter a estrutura que já estava, se for preciso mudar?
             return std::chrono::duration_cast<std::chrono::duration<double>>(total).count(); 
         }

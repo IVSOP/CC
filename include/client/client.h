@@ -164,10 +164,11 @@ struct Client {
      */
     int weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<Ip>>>& block_nodes, double* max_rtt);
     Ip selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<Ip, std::vector<uint32_t>>& nodes_blocks);
+    void updateFileNodesServer(uint64_t fileHash);
 
     // Node scheduling -----------
-    void regPacketSentTime(FS_Transfer_Info& info, sys_nanoseconds sentTimestamp);
-    void updateNodeResponseTime(FS_Transfer_Info& info, sys_nanoseconds arrivedTimestamp);
+    void regPacketSentTime(const FS_Transfer_Info& info, sys_nanoseconds sentTimestamp);
+    void updateNodeResponseTime(const FS_Transfer_Info& info, sys_nanoseconds arrivedTimestamp);
     void insert_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, const sys_nanoseconds& startTime);
     bool find_remove_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, sys_nanoseconds * retValue);
     void insert_regRTT(const Ip& nodeIp, const sys_nanoseconds& timeSent, const sys_nanoseconds& timeReceived);
