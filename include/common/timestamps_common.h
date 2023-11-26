@@ -2,9 +2,10 @@
 #define TIMESTAMPS_COMMON_H
 
 #include <chrono>
+#include <iostream>
 
 #define NODES_RTT_TRACK_SIZE 16
-#define BASE_RTT_TIME std::chrono::seconds(30);
+#define BASE_TIMEOUT_TIME std::chrono::seconds(5); // initial timeout time is 5 seconds
 
 //represent timestamps in nanoseconds
 //sys_nanoseconds represents timepoint -> causes compile time error if used as time duration
@@ -36,9 +37,22 @@ template <class Duration>
                 total += arr[i];
             }
             if (size > 0) total = total / size;
-            else total = BASE_RTT_TIME;
+            else total = BASE_TIMEOUT_TIME;
             //converti em double para manter a estrutura que já estava, se for preciso mudar?
             return std::chrono::duration_cast<std::chrono::duration<double>>(total).count(); 
+        }
+
+        //receives RTT in seconds
+        static std::chrono::milliseconds calcTimeoutTime(double rtt) {
+            auto total = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::duration<double>(rtt));
+
+            //operações com o rtt (o que fazer ???)
+            //total += std::chrono::seconds(5);
+            total *= 1.25;
+            auto rttInMilliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(total);
+            std::cout << "Updated RTT in milliseconds: " << rttInMilliseconds.count() << " ms" << std::endl;
+            return rttInMilliseconds;
+
         }
     };
     

@@ -195,11 +195,11 @@ void Client::updateNodeResponseTime(const FS_Transfer_Info& info, sys_nanosecond
 		BlockSendData block = info.packet.data.blockData;
 		bool found = find_remove_regPacket(nodeIp,info.packet.id,block.blockID, &timeSent);
 		if (found) {// se registo de bloco recebido ainda existe, aka não estamos a receber dados de bloco duplicado
-			printf("Received packet:");
-			printTimePoint(timeSent);
+			//printf("Received packet:");
+			//printTimePoint(timeSent);
 			insert_regRTT(nodeIp,timeSent,timeArrived); // atualizar lista de RTT do nodo com novo RTT
-			double nodeRTT = this->nodes_tracker[nodeIp].RTT();
-			std::cout << "currentRTT in seconds: " << nodeRTT << std::endl;
+			//double nodeRTT = this->nodes_tracker[nodeIp].RTT();
+			//std::cout << "currentRTT in seconds: " << nodeRTT << std::endl;
 		}
 	}
 }
@@ -266,6 +266,7 @@ void Client::printFull_node_sent_reg() {
 			printTimePoint(value);
 		}
 	}
+	printf("\n");
 }
 
 void Client::printFull_nodes_tracker() {
@@ -284,6 +285,7 @@ void Client::printFull_nodes_tracker() {
 			std::cout << "no data " << std::endl;
 		}
 	}
+	printf("\n");
 }
 
 void Client::printTimePoint(const sys_nanoseconds& timePoint) {
@@ -309,6 +311,13 @@ void Client::printTimeDiff(const sys_nano_diff& timeDiff) {
     std::cout << "Duration in seconds: " << seconds << " seconds" << std::endl;
 }
 
+void Client::printFull_nodes_priority() {
+	std::cout << "\nFULL PRINT FOR NODES_PRIORITY----\n" << std::endl;
+	for (const auto& pair : this->nodes_priority) {
+		std::cout << "nodeIP : " << inet_ntoa(pair.first.addr.sin_addr) << " Priority:" << pair.second;
+	}
+	printf("\n");
+}
 
 void Client::initUploadLoop() {
     // creates a thread that listens in permanently, and writes the data to a buffer
@@ -561,15 +570,15 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 
 	while (tmp == -1) {
 		tmp = weightedRoundRobin(hash, block_nodes, &rtt);
-		std::cout << "Iteration maxRTT: " << rtt << std::endl;
-		std::this_thread::sleep_for(std::chrono::milliseconds((int) ((rtt+10)*5)));
-		//se der timeout onde digo isso??
+		std::cout << "Iteration maxRTT: " << rtt << std::endl; //ultima iteração dá sempre rtt = 0, mas tá correto, porque n chega a entrar no loop dos nodos
+		std::this_thread::sleep_for(NodesRTT::calcTimeoutTime(rtt));
 		updateFileNodesServer(hash);
 	}
 
 	printFull_node_sent_reg();
 	printFull_nodes_tracker();
-
+	printFull_nodes_priority();
+	
 	std::cout << "File transfer completed\n" << std::endl;
 
 	// apagar estruturas
@@ -663,7 +672,7 @@ void Client::ReqBlockData(const FS_Transfer_Info& info) {
 		dataFinal.packet = dataPacket;
 		// dataFinal.timestamp = std::time(nullptr); // tempo é definido mesmo antes do push, não necessário aqui
 
-		printResponsePacket(dataFinal); // debug
+		//printResponsePacket(dataFinal); // debug
 		Client::sendInfo(dataFinal);
 	}
 }
@@ -746,7 +755,7 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 
     for (auto i = nodes_blocks.begin(); i != nodes_blocks.end(); i++){
 		std::unique_lock<std::mutex> lock(nodes_tracker_lock);
-		
+
         std::copy(i->second.begin(), i->second.end(), arr);
         ssize_t size = i->second.size() * sizeof(uint32_t);
 		*max_rtt = std::max(*max_rtt, this->nodes_tracker.at(i->first).RTT());

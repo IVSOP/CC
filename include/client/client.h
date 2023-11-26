@@ -179,6 +179,7 @@ struct Client {
     void printTimeDiff(const sys_nano_diff& timeDiff);
     void printFull_node_sent_reg();
     void printFull_nodes_tracker();
+    void printFull_nodes_priority();
 
     ClientTCPSocket socketToServer;
     NodeUDPSocket udpSocket; // usamos apenas 1 socket para tudo
