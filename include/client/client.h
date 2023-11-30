@@ -151,6 +151,7 @@ struct Client {
 
 	void wrongChecksum(const FS_Transfer_Info &info);
     void rightChecksum(const FS_Transfer_Info& info);
+    void checkTimeoutNodes(std::unordered_map<Ip, std::vector<uint32_t>>& updatedBlocks, uint64_t fileHash, sys_milli_diff timeoutTime); 
 
     void regDirectory(char* directory);
     void regFile(const char* dir, char* fn);
@@ -165,7 +166,6 @@ struct Client {
     int weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<Ip>>>& block_nodes, std::unordered_map<Ip, std::vector<uint32_t>>& nodes_blocksdouble, double* max_rtt, bool* updatedBlocks);
     Ip selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<Ip, std::vector<uint32_t>>& nodes_blocks);
     void updateFileNodesServer(uint64_t fileHash);
-    void deleteFile(uint64_t fileHash);
 
     // Node scheduling -----------
     void regPacketSentTime(const FS_Transfer_Info& info, sys_nanoseconds sentTimestamp);
@@ -204,8 +204,9 @@ struct Client {
     std::unordered_map<uint8_t,FS_Transfer_Packet_handler> dispatchTable;
 
     // Node scheduling 
-    std::mutex nodes_tracker_lock;
+    std::mutex nodes_priority_lock;
     std::unordered_map<Ip, uint32_t> nodes_priority; // priority given to each node //começa com prioridade 0
+    std::mutex nodes_tracker_lock;
     std::unordered_map<Ip, NodesRTT> nodes_tracker; // tracks last x amount of RTTs
     std::unordered_map<Ip, std::unordered_map<std::pair<uint64_t,uint32_t>,sys_nanoseconds, KeyHash>> node_sent_reg;// tracks timestamps for different node requests
 

@@ -14,8 +14,8 @@
 #define MAX_WRR_NON_UPDATE_TRIES 3
 
 Client::Client() // por default sockets aceitam tudo
-    : socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), dispatchTable(), nodes_tracker_lock(),
-	nodes_priority(), nodes_tracker(), node_sent_reg()
+    : socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), dispatchTable(), nodes_priority_lock(),
+	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), node_sent_reg()
 {
     // register
     initUploadLoop();
@@ -25,8 +25,8 @@ Client::Client() // por default sockets aceitam tudo
 }
 
 Client::Client(char* dir) // por default sockets aceitam tudo
-	: socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_tracker_lock(),
-	nodes_priority(), nodes_tracker(), node_sent_reg()
+	: socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
+	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), node_sent_reg()
 {
     // register
     initUploadLoop();
@@ -37,8 +37,8 @@ Client::Client(char* dir) // por default sockets aceitam tudo
 }
 
 Client::Client(char* dir, const std::string &IPv4)
-	: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_tracker_lock(),
-	nodes_priority(), nodes_tracker(), node_sent_reg()
+	: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
+	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), node_sent_reg()
 {
     // register
     initUploadLoop();
@@ -49,8 +49,8 @@ Client::Client(char* dir, const std::string &IPv4)
 }
 
 Client::Client(char* dir, const std::string &svIPv4, const std::string &myIPv4)
-: socketToServer(svIPv4), udpSocket(myIPv4), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_tracker_lock(),
-	nodes_priority(), nodes_tracker(), node_sent_reg()
+: socketToServer(svIPv4), udpSocket(myIPv4), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
+	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), node_sent_reg()
 {
 	// register
     initUploadLoop();
@@ -76,7 +76,7 @@ void printResponsePacket(FS_Transfer_Info& info) {
 void PrintRequestPacket(FS_Transfer_Info& info) {
 	BlockRequestData * b = static_cast<BlockRequestData *> (info.packet.getData());
 	printf("BlockRequestData packet>>>\n");
-	printf("sending to IP: %s, checksum: %u, opcode: %u, sizeOfData: %u, fileId: %lu\n",inet_ntoa(info.addr.sin_addr), info.packet.checksum,
+	printf("sending to IP: %s, checksum: %u, opcode: %u, sizeOfData: %u, fileId: %llu\n",inet_ntoa(info.addr.sin_addr), info.packet.checksum,
 		info.packet.getOpcode(),info.packet.getSize(), info.packet.id);
 
 	printf("blockIDs requested: ");
@@ -130,16 +130,21 @@ void Client::answerRequestsLoop() {
 	}
 }
 
-// o que fazer se checksum falhar
+// se checksum falhar, diminui prioridade de nodo
+// pode acontecer tanto quando recebe uma request, ou uma reply de outro nodo!!
+// n processa o pacote, porque tem dados corrompidos
 void Client::wrongChecksum(const FS_Transfer_Info&info) {
 	updateNodePriority(Ip(info.addr), NODE_VALUE_WRONG);
-	// reenvio de nodo será feito no WRR, não precisa de ser feito aqui
 }
 
+//se checksum correr bem, processa pacote
+// só se pacote for response, aumenta prioridade do nodo
 void Client::rightChecksum(const FS_Transfer_Info& info) {
-	updateNodePriority(Ip(info.addr), NODE_VALUE_SUCCESS);
 	uint8_t opcode = info.packet.getOpcode();
 	if (opcode <= 1) {
+		if (opcode == 1) {
+			updateNodePriority(Ip(info.addr), NODE_VALUE_SUCCESS);
+		}
 		(this->*dispatchTable[opcode])(info); // assign data to function with respective opcode
 	} else {
 		perror("No handler found for packet Opcode");
@@ -149,9 +154,31 @@ void Client::rightChecksum(const FS_Transfer_Info& info) {
 	//printPacket(info);
 }
 
+// verificar se blocos pedidos deram timeout 
+// se deram timeout:
+// - decrementar prioridade do nodo
+// - aumentar RTT do respetivo nodo, para no próximo pedido ter timeout maior
+void Client::checkTimeoutNodes(std::unordered_map<Ip, std::vector<uint32_t>>& requested_blocks, uint64_t fileHash, sys_milli_diff timeoutTime) {
+	for (auto i = requested_blocks.begin(); i != requested_blocks.end(); i++) {
+		for (uint32_t block: i->second) {
+			if (this->blocksPerFile[fileHash][block] == false) {// se bloco não tiver chegado no tempo definido // excusa de haver locks, se ler errado porque chega no mesmo milisegundo o bloco, conta como timeout na mesma
+				updateNodePriority(i->first, NODE_VALUE_TIMEOUT);
+				printf("Timeout occured on node: %s, blockRequest: %d\n", inet_ntoa(i->first.addr.sin_addr), block);
+
+				std::unique_lock<std::mutex> lock(this->nodes_tracker_lock);
+				nodes_tracker[i->first].receive2(std::chrono::duration_cast<std::chrono::nanoseconds>(timeoutTime));
+				this->nodes_tracker_lock.unlock();
+
+				NodesRTT::calcTimeoutTime(this->nodes_tracker[i->first].RTT()); // print do valor atualizado de timeout para esse nodo
+				break; // se para um nodo algum bloco não chegar, calcula-se só um timeout, pois à partida se deu timeout para um bloco dará para vários, e n queremos penalizar exageradamente este nodo
+			}
+		}
+	}
+}
+
 //obter prioridade de nodo
 uint32_t Client::getNodePriority(const Ip& nodeIp) {
-	std::unique_lock<std::mutex> lock(this->nodes_tracker_lock);
+	std::unique_lock<std::mutex> lock(this->nodes_priority_lock);
 	uint32_t res = this->nodes_priority[nodeIp];
 	lock.unlock();
 	return res;
@@ -159,7 +186,7 @@ uint32_t Client::getNodePriority(const Ip& nodeIp) {
 
 //incrementa valor à prioridade de nodo
 void Client::updateNodePriority(const Ip& nodeIp, uint32_t value) {
-	std::unique_lock<std::mutex> lock(this->nodes_tracker_lock);
+	std::unique_lock<std::mutex> lock(this->nodes_priority_lock);
 	this->nodes_priority[nodeIp] += value;
 	lock.unlock();
 }
@@ -181,7 +208,6 @@ void Client::regPacketSentTime(const FS_Transfer_Info &info, sys_nanoseconds tim
 		for (int i = 0; i < size; i++) {
 			// printf("processing block: %d\n", block.blockID[i]);
 			insert_regPacket(nodeIp,info.packet.id,block.blockID[i],timestamp);
-			//debug
 			sys_nanoseconds val = this->node_sent_reg[nodeIp][{info.packet.id,block.blockID[i]}];
 			printf("Sent packet %d, start time:\n",block.blockID[i]);
 			printTimePoint(val);
@@ -227,7 +253,7 @@ void Client::insert_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, 
 //finds packet in node_sent_reg and removes it if found
 // returns false if not found
 bool Client::find_remove_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, sys_nanoseconds * retValue) {
-	printf("entered find_remove\n");
+	// printf("entered find_remove\n");
 	bool result = false;
 	//se existir dados para nodo, e respetivo par
 	auto outerIt = node_sent_reg.find(nodeIp);
@@ -247,11 +273,9 @@ bool Client::find_remove_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blo
 
 //insere novo valor em nodes_tracker
 void Client::insert_regRTT(const Ip& nodeIp, const sys_nanoseconds& timeSent, const sys_nanoseconds& timeReceived) {
-	// já é inicializado antes, n é preciso aqui
-	// if (nodes_tracker.find(nodeIp) == nodes_tracker.end()) {
-	// 	nodes_tracker.insert({nodeIp,NodesRTT()});
-	// }
+	std::unique_lock<std::mutex> lock(this->nodes_tracker_lock);
 	nodes_tracker[nodeIp].receive(timeSent,timeReceived);
+	this->nodes_tracker_lock.unlock();
 }
 
 void Client::printFull_node_sent_reg() {
@@ -391,7 +415,7 @@ void Client::commandParser(const char * dir) {
 
         if (command == "get") {
             uint64_t hash = getFilenameHash((char*) filename.c_str(), filename.size());
-			printf("Asking for file %s (%u)\n", filename.c_str(), hash);
+			printf("Asking for file %s (%llu)\n", filename.c_str(), hash);
 
 			FS_Track::sendGetMessage(this->socketToServer, hash);
 
@@ -404,7 +428,7 @@ void Client::commandParser(const char * dir) {
 
 			puts("Received info from server:");
 
-            printf("opcode: %u opt: %u size: %u hash: %u\n", message.fsTrackGetOpcode(), (message.fsTrackGetOpt() ? 1 : 0), message.fsTrackGetSize(), message.fsTrackGetHash());
+            printf("opcode: %u opt: %u size: %u hash: %llu\n", message.fsTrackGetOpcode(), (message.fsTrackGetOpt() ? 1 : 0), message.fsTrackGetSize(), message.fsTrackGetHash());
 
             std::vector<FS_Track::PostFileBlocksData> receivedData = message.postFileBlocksGetData();
 
@@ -428,7 +452,7 @@ void Client::registerWithServer() {
 	puts("Registering with server");
     std::vector<FS_Track::RegUpdateData> data = std::vector<FS_Track::RegUpdateData>();
     for(const auto& pair: this->blocksPerFile){
-		printf("Adding file %u\n", pair.first);
+		printf("Adding file %llu\n", pair.first);
         data.emplace_back(pair.first, pair.second);
     }
 
@@ -500,7 +524,7 @@ void Client::regFile(const char* dir, char* fn) {
 	this->currentBlocksInEachFile.insert({hash,totalBlocks});
 	this->fileDescriptorMap.insert({hash, file});
 
-	printf("file: %s hash %u\n", filePath, hash);
+	printf("file: %s hash %llu\n", filePath, hash);
 }
 
 //registar ficheiro novo que se faz GET nas estruturas de ficheiros do cliente
@@ -580,14 +604,19 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
         if(!updatedBlocks) currentTries++;
         else currentTries = 0;
 
-        if(currentTries > MAX_WRR_NON_UPDATE_TRIES) break;
-
-		std::cout << "Iteration maxRTT: " << rtt << std::endl; //ultima iteração dá sempre rtt = 0, mas tá correto, porque n chega a entrar no loop dos nodos
-		std::this_thread::sleep_for(NodesRTT::calcTimeoutTime(rtt));
+        if(currentTries > MAX_WRR_NON_UPDATE_TRIES) {
+			tmp = 0; // significa que max_tries atingidas
+			break;
+		}
+		
+		std::cout << "Iteration maxRTT: " << rtt << "s" << std::endl; //ultima iteração dá sempre rtt = 0, mas tá correto, porque n chega a entrar no loop dos nodos
+		std::chrono::milliseconds timeoutTime = NodesRTT::calcTimeoutTime(rtt); // tempo de timeout
+		std::this_thread::sleep_for(timeoutTime);
+		checkTimeoutNodes(nodes_blocks, hash, timeoutTime);
 		updateFileNodesServer(hash);
 	}
 
-    if(tmp == 0){
+    if(tmp == 1){
         printFull_node_sent_reg();
         printFull_nodes_tracker();
         printFull_nodes_priority();
@@ -602,12 +631,6 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 	this->nodes_tracker.clear();
 	this->nodes_priority.clear();
 	this->node_sent_reg.clear();
-}
-
-void Client::deleteFile(uint64_t fileHash){
-    FILE* fd = this->fileDescriptorMap.at(fileHash);
-
-
 }
 
 //dispatch table
@@ -676,7 +699,7 @@ void Client::ReqBlockData(const FS_Transfer_Info& info) {
 		//printf("processing block: %d\n", blocks[i]);
 
 		//obter bloco de ficheiro
-
+		//sleep(5); // teste de timeout
 		dataSize = getFileBlock(packet.getId(),blocks[i],blockData);
 		//printf("data read: %s\n",blockData);
 		if (dataSize < 0) {
@@ -728,9 +751,16 @@ void Client::updateFileNodesServer(uint64_t fileHash) {
 	//Enviar ao servidor
 	puts("Updating with server");
     std::vector<FS_Track::RegUpdateData> data = std::vector<FS_Track::RegUpdateData>();
+	//debug
+	// printf("Sending following data: \n");
+	// for (int i=0;i<mapForServer.size();i++) {
+	// 	std::cout << "pos: " << i << "block:" << (mapForServer[i] == true) << std::endl;
+	// }
+	// putchar('\n');
+
     data.emplace_back(fileHash, mapForServer);
 	FS_Track::sendRegMessage(this->socketToServer, data);
-	puts("File registration sent");
+	//puts("File registration sent");
 };
 
 //compara número de nodos (aka vector<Ip>.size) que podem fornecer um bloco (uint32_t)
@@ -752,6 +782,7 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 
     for (auto i = block_nodes.begin(); i != block_nodes.end(); i++){
 		
+		//se bloco já tiver sido recebido, desde a iteração anterior
 		if(this->blocksPerFile.at(hash).at(i->first)){
 			block_nodes.erase(i);
             i--;
