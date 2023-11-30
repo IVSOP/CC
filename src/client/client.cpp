@@ -154,7 +154,7 @@ void Client::rightChecksum(const FS_Transfer_Info& info) {
 	//printPacket(info);
 }
 
-// verificar se blocos pedidos deram timeout 
+// verificar se blocos pedidos deram timeout
 // se deram timeout:
 // - decrementar prioridade do nodo
 // - aumentar RTT do respetivo nodo, para no próximo pedido ter timeout maior
@@ -417,7 +417,7 @@ void Client::commandParser(const char * dir) {
             uint64_t hash = getFilenameHash((char*) filename.c_str(), filename.size());
 			printf("Asking for file %s (%llu)\n", filename.c_str(), hash);
 
-			FS_Track::sendGetMessage(this->socketToServer, hash);
+			ssize_t tmp = FS_Track::sendGetMessage(this->socketToServer, hash);
 
             message = FS_Track(); // cursed
 
@@ -428,7 +428,7 @@ void Client::commandParser(const char * dir) {
 
 			puts("Received info from server:");
 
-            printf("opcode: %u opt: %u size: %u hash: %llu\n", message.fsTrackGetOpcode(), (message.fsTrackGetOpt() ? 1 : 0), message.fsTrackGetSize(), message.fsTrackGetHash());
+            printf("opcode: %u opt: %u size: %u hash: %lu\n", message.fsTrackGetOpcode(), (message.fsTrackGetOpt() ? 1 : 0), message.fsTrackGetSize(), message.fsTrackGetHash());
 
             std::vector<FS_Track::PostFileBlocksData> receivedData = message.postFileBlocksGetData();
 
@@ -444,6 +444,8 @@ void Client::commandParser(const char * dir) {
         }
     }
 
+    FS_Track::sendByeByeMessage(this->socketToServer);
+
     delete [] (uint*) buffer;
 }
 
@@ -452,7 +454,7 @@ void Client::registerWithServer() {
 	puts("Registering with server");
     std::vector<FS_Track::RegUpdateData> data = std::vector<FS_Track::RegUpdateData>();
     for(const auto& pair: this->blocksPerFile){
-		printf("Adding file %llu\n", pair.first);
+		printf("Adding file %lu\n", pair.first);
         data.emplace_back(pair.first, pair.second);
     }
 
@@ -608,7 +610,7 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 			tmp = 0; // significa que max_tries atingidas
 			break;
 		}
-		
+
 		std::cout << "Iteration maxRTT: " << rtt << "s" << std::endl; //ultima iteração dá sempre rtt = 0, mas tá correto, porque n chega a entrar no loop dos nodos
 		std::chrono::milliseconds timeoutTime = NodesRTT::calcTimeoutTime(rtt); // tempo de timeout
 		std::this_thread::sleep_for(timeoutTime);
@@ -746,7 +748,7 @@ void Client::updateFileNodesServer(uint64_t fileHash) {
 	for (; finalIndex >= 0 && flag; finalIndex--) {
 		if (fileMap[finalIndex]) flag = false;
 	}
-	bitMap mapForServer(fileMap.begin(),fileMap.begin() + finalIndex);
+	bitMap mapForServer = bitMap(fileMap);
 
 	//Enviar ao servidor
 	puts("Updating with server");
@@ -759,7 +761,7 @@ void Client::updateFileNodesServer(uint64_t fileHash) {
 	// putchar('\n');
 
     data.emplace_back(fileHash, mapForServer);
-	FS_Track::sendRegMessage(this->socketToServer, data);
+	FS_Track::sendUpdateMessage(this->socketToServer, data);
 	//puts("File registration sent");
 };
 

@@ -279,6 +279,8 @@ void FS_Track::postFileBlocksSetData(const std::vector<FS_Track::PostFileBlocksD
 std::vector<FS_Track::PostFileBlocksData> FS_Track::postFileBlocksGetData() {
     auto deserializedData = std::vector<FS_Track::PostFileBlocksData>();
 
+    if(this->fsTrackGetSize() == 0) return deserializedData;
+
     uint8_t *serializedData = (uint8_t *) this->data;
     uint32_t i = 0;
 

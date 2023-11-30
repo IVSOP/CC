@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <vector>
 #include <string>
+#include <csignal>
 #include "TCP_socket.h"
 #include "bitmap.h"
 
@@ -199,11 +200,13 @@ public:
      * @param socket Message destiny
      * @param message FSTrack message
      */
-    static void sendMessage(ClientTCPSocket& socket, FS_Track& message){
+    static ssize_t sendMessage(ClientTCPSocket& socket, FS_Track& message){
         std::pair<uint8_t *, uint32_t> buf = message.FS_Track::fsTrackToBuffer();
-        socket.sendData(buf.first, buf.second);
+        ssize_t ans = socket.sendData(buf.first, buf.second);
 
         delete [] (uint8_t*) buf.first;
+
+        return ans;
     }
 
     /**
@@ -211,7 +214,7 @@ public:
      * @param socket Message destiny
      * @param message FSTrack message
      */
-    static void sendMessage(ServerTCPSocket::SocketInfo & socket, FS_Track& message){
+    static void sendMessage(ServerTCPSocket::SocketInfo& socket, FS_Track& message){
         std::pair<uint8_t *, uint32_t> buf = message.FS_Track::fsTrackToBuffer();
         socket.sendData(buf.first, buf.second);
 
@@ -249,10 +252,10 @@ public:
      * @param socket Socket to send message through
      * @param hash File's hash
      */
-    static void sendGetMessage(ClientTCPSocket& socket, uint64_t hash){
+    static ssize_t sendGetMessage(ClientTCPSocket& socket, uint64_t hash){
         FS_Track message = FS_Track(2, hash);
 
-        sendMessage(socket, message);
+        return sendMessage(socket, message);
     }
 
     /**
@@ -295,14 +298,24 @@ public:
         sendMessage(socket, message);
     }
 
-    static bool readMessage(FS_Track& message, void* buf, ssize_t bufSize, ServerTCPSocket::SocketInfo connection){
+    /**
+     * Send bye bye message to server in order to disconnect client
+     * @param socket Socket to send message through
+     */
+    static void sendByeByeMessage(ClientTCPSocket& socket) {
+        FS_Track message = FS_Track(5);
+
+        sendMessage(socket, message);
+    }
+
+    static bool readMessage(FS_Track& message, void* buf, ssize_t bufSize, ServerTCPSocket::SocketInfo& connection){
         uint8_t *buffer = (uint8_t*) buf;
         uint32_t bytes, remainBytes;
         uint32_t bufferSize = (uint32_t) bufSize;
 
         bytes = connection.receiveData(buffer, 4);
 
-        if (bytes == 0) return false;
+        if (bytes <= 0) return false;
 
         message.fsTrackHeaderReadBuffer(buffer, bytes);
 
@@ -324,14 +337,14 @@ public:
         return true;
     }
 
-    static bool readMessage(FS_Track& message, void* buf, ssize_t bufSize, ClientTCPSocket connection){
+    static bool readMessage(FS_Track& message, void* buf, ssize_t bufSize, ClientTCPSocket& connection){
         uint8_t *buffer = (uint8_t*) buf;
         uint32_t bytes, remainBytes;
         uint32_t bufferSize = (uint32_t) bufSize;
 
         bytes = connection.receiveData(buffer, 4);
 
-        if (bytes == 0) return false;
+        if (bytes <= 0) return false;
 
         message.fsTrackHeaderReadBuffer(buffer, bytes);
 

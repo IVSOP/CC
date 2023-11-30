@@ -34,6 +34,7 @@ void read_data(Server& server, ServerTCPSocket::SocketInfo& connection, FS_Track
         case 2:
             data = server.getNodesWithFile(message.fsTrackGetHash());
             FS_Track::sendPostMessage(connection, message.fsTrackGetHash(), data);
+            puts("Enviei mensagem Post");
             break;
 
         // Post Message
@@ -59,7 +60,7 @@ void read_data(Server& server, ServerTCPSocket::SocketInfo& connection, FS_Track
 }
 
 
-void serveClient(ServerTCPSocket::SocketInfo& connection, Server& serverData, std::mutex& mtx, std::condition_variable& cdt) {
+void serveClient(ServerTCPSocket::SocketInfo connection, Server& serverData, std::mutex& mtx, std::condition_variable& cdt) {
     FS_Track message = FS_Track();
     uint8_t* buffer = new uint8_t[BUFFER_SIZE];
 
@@ -67,6 +68,9 @@ void serveClient(ServerTCPSocket::SocketInfo& connection, Server& serverData, st
         read_data(serverData, connection, message);
         message = FS_Track();
     }
+
+    message = FS_Track(5);
+    read_data(serverData, connection, message);
 
     delete[] (uint8_t*) buffer;
 
@@ -83,7 +87,7 @@ void acceptClients(Server& serverData, std::vector<ThreadRAII>& threadGraveyard,
     while (true) {
         new_connection = serverSocket.acceptClient();
 
-        threadGraveyard.emplace_back(std::thread(serveClient, std::ref(new_connection), std::ref(serverData), std::ref(mtx), std::ref(cdt)), ThreadRAII::DtorAction::join);
+        threadGraveyard.emplace_back(std::thread(serveClient, new_connection, std::ref(serverData), std::ref(mtx), std::ref(cdt)), ThreadRAII::DtorAction::join);
     }
 }
 
