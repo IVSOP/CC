@@ -10,6 +10,7 @@
 #define SERVER_IP "0.0.0.0"
 #define FILENAME_BUFFER_SIZE 300
 #define BUFFER_SIZE 1500
+#define MAX_WRR_NON_UPDATE_TRIES 3
 
 Client::Client() // por default sockets aceitam tudo
     : socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), dispatchTable(), nodes_tracker_lock(),
@@ -567,19 +568,33 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 
 	int tmp = -1;
 	double rtt = 0;
+    bool updatedBlocks;
+    int currentTries = 0;
+    std::unordered_map<Ip, std::vector<uint32_t>> nodes_blocks = std::unordered_map<Ip, std::vector<uint32_t>>();
 
 	while (tmp == -1) {
-		tmp = weightedRoundRobin(hash, block_nodes, &rtt);
+        updatedBlocks = false;
+		tmp = weightedRoundRobin(hash, block_nodes, nodes_blocks, &rtt, &updatedBlocks);
+
+        if(!updatedBlocks) currentTries++;
+        else currentTries = 0;
+
+        if(currentTries > MAX_WRR_NON_UPDATE_TRIES) break;
+
 		std::cout << "Iteration maxRTT: " << rtt << std::endl; //ultima iteração dá sempre rtt = 0, mas tá correto, porque n chega a entrar no loop dos nodos
 		std::this_thread::sleep_for(NodesRTT::calcTimeoutTime(rtt));
 		updateFileNodesServer(hash);
 	}
 
-	printFull_node_sent_reg();
-	printFull_nodes_tracker();
-	printFull_nodes_priority();
-	
-	std::cout << "File transfer completed\n" << std::endl;
+    if(tmp == 0){
+        printFull_node_sent_reg();
+        printFull_nodes_tracker();
+        printFull_nodes_priority();
+
+        std::cout << "File transfer completed\n" << std::endl;
+    } else{
+        std::cout << "There seems to have been an error while requesting the given file. Please try again later." << std::endl;
+    }
 
 	// apagar estruturas
 	this->nodes_tracker.clear();
@@ -720,8 +735,8 @@ int cmpBlocksAvailability(std::pair<uint32_t , std::vector<Ip>>& a, std::pair<ui
 // tem por base prioridades dos nodos
 // começa por blocos mais raros, até mais comuns
 
-int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<Ip>>>& block_nodes, double* max_rtt){
-    std::unordered_map<Ip, std::vector<uint32_t>> nodes_blocks = std::unordered_map<Ip, std::vector<uint32_t>>(); //para cada ip quais blocos se vão pedir
+int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<Ip>>>& block_nodes, std::unordered_map<Ip, std::vector<uint32_t>>& nodes_blocks, double* max_rtt, bool* updatedBlocks){
+    nodes_blocks.clear(); //para cada ip quais blocos se vão pedir
     uint32_t maxSize = 0;
 	*max_rtt = 0;
 
@@ -732,6 +747,7 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 		if(this->blocksPerFile.at(hash).at(i->first)){
 			block_nodes.erase(i);
             i--;
+            *updatedBlocks = true;
 			continue;
 		}
 
