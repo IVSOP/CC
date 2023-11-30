@@ -741,24 +741,19 @@ void Client::RespondBlockData(const FS_Transfer_Info& info) {
 //atualiza servidor com nodos possuidos atualmente
 void Client::updateFileNodesServer(uint64_t fileHash) {
 	bitMap& fileMap = this->blocksPerFile[fileHash];
-	bool flag = true;
-	int finalIndex = fileMap.size() -1; //índice máxima do vector que vai ser enviado ao servidor
+	int finalIndex = fileMap.size() - 1; //índice máximo do vector que vai ser enviado ao servidor
 
 	// calcular índice máximo com true, para enviar só o tamanho necessário ao servidor
-	for (; finalIndex >= 0 && flag; finalIndex--) {
-		if (fileMap[finalIndex]) flag = false;
+	for (; finalIndex >= 0; finalIndex--) {
+		if (fileMap[finalIndex]) break;
 	}
-	bitMap mapForServer = bitMap(fileMap);
+
+	bitMap mapForServer(fileMap.begin(),fileMap.begin() + finalIndex + 1);
 
 	//Enviar ao servidor
 	puts("Updating with server");
     std::vector<FS_Track::RegUpdateData> data = std::vector<FS_Track::RegUpdateData>();
 	//debug
-	// printf("Sending following data: \n");
-	// for (int i=0;i<mapForServer.size();i++) {
-	// 	std::cout << "pos: " << i << "block:" << (mapForServer[i] == true) << std::endl;
-	// }
-	// putchar('\n');
 
     data.emplace_back(fileHash, mapForServer);
 	FS_Track::sendUpdateMessage(this->socketToServer, data);
