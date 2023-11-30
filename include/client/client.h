@@ -165,6 +165,7 @@ struct Client {
     int weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<Ip>>>& block_nodes, std::unordered_map<Ip, std::vector<uint32_t>>& nodes_blocksdouble, double* max_rtt, bool* updatedBlocks);
     Ip selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<Ip, std::vector<uint32_t>>& nodes_blocks);
     void updateFileNodesServer(uint64_t fileHash);
+    void deleteFile(uint64_t fileHash);
 
     // Node scheduling -----------
     void regPacketSentTime(const FS_Transfer_Info& info, sys_nanoseconds sentTimestamp);

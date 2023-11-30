@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <condition_variable>
 #include <iomanip>
+#include <filesystem>
 
 #define SERVER_IP "0.0.0.0"
 #define FILENAME_BUFFER_SIZE 300
@@ -594,12 +595,19 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
         std::cout << "File transfer completed\n" << std::endl;
     } else{
         std::cout << "There seems to have been an error while requesting the given file. Please try again later." << std::endl;
+        std::filesystem::remove(filename);
     }
 
 	// apagar estruturas
 	this->nodes_tracker.clear();
 	this->nodes_priority.clear();
 	this->node_sent_reg.clear();
+}
+
+void Client::deleteFile(uint64_t fileHash){
+    FILE* fd = this->fileDescriptorMap.at(fileHash);
+
+
 }
 
 //dispatch table
