@@ -24,30 +24,17 @@ void Server::addNewInfo(uint32_t ip, FS_Track::RegUpdateData &newNode) {
 
     auto mapIter = fileMap.find(hash);
     std::pair<uint32_t, bitMap> iterPair;
-    bool found = false;
 
-    for (const auto &pair: mapIter->second) { // procurar se nodo já tem blocos desse ficheiro
+    for (uint32_t i = 0; i < mapIter->second.size(); i++) {
+        auto &pair = mapIter->second.at(i);// procurar se nodo já tem blocos desse ficheiro
         if (pair.first == ip) {
-            found = true;
-            iterPair = pair;
+            mapIter->second.erase(mapIter->second.begin() + i);
             break;
         }
     }
 
-    if (found) { // se já existiam blocos do ficheiro
-        puts("Found related file to the given node");
-
-        for(int i = 0; i < receivedBlocks.size(); i++){
-            printf("Block %d %s\n", i, receivedBlocks.at(i) ? "received" : "not received");
-        }
-
-        iterPair.second = bitMap(receivedBlocks);
-    } else { // se ainda não exista par (nodo, blocos do ficheiro)
-        puts("No related file found to the given node");
-        (mapIter->second).emplace_back(ip, receivedBlocks); // criar novo par (nodo, blocos do ficheiro)
-    }
-
-};
+    (mapIter->second).emplace_back(ip, receivedBlocks); // criar novo par (nodo, blocos do ficheiro)
+}
 
 void Server::printMap() {
     for (const auto &kv: fileMap) {
