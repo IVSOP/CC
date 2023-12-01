@@ -71,10 +71,14 @@ void serveClient(ServerTCPSocket::SocketInfo connection, Server& serverData, std
     FS_Track message = FS_Track();
     uint8_t* buffer = new uint8_t[BUFFER_SIZE];
 
+    puts("Connection initiated.");
+
     while (FS_Track::readMessage(message, buffer, BUFFER_SIZE, connection)) {
         read_data(serverData, connection, message);
         message = FS_Track();
     }
+
+    puts("Connection terminated.");
 
     message = FS_Track(5);
     read_data(serverData, connection, message);
