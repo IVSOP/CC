@@ -43,16 +43,24 @@ void Server::addNewInfo(uint32_t ip, FS_Track::RegUpdateData &newNode) {
         uint32_t min = std::min(curSize, receivedSize);
         uint32_t max = std::max(curSize, receivedSize);
 
+        printf("Need to update a total of %d blocks", receivedSize);
+
         // Update bitMap existent
         for(uint32_t i = 0; i < min; i++){
+            printf("Updated block %d\n", i);
+
             nodeBlocks.insert(nodeBlocks.begin() + i, nodeBlocks.at(i) || receivedBlocks.at(i));
         }
 
         puts("Old blocks updated");
 
         if(receivedSize > min){
+            puts("Updating new blocks");
+
             // Add new values to bitMap
             for (uint32_t i = min; i < max; i++) {
+                printf("Updated block %d\n", i);
+
                 nodeBlocks.push_back(receivedBlocks.at(i));
             }
 
