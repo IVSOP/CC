@@ -31,7 +31,7 @@ void read_data(Server& server, ServerTCPSocket::SocketInfo& connection, FS_Track
 
         // Update node
         case 1:
-            puts("Received update message");
+            printf("Received update message with size %d\n", message.fsTrackGetSize());
             server.registerUpdateNode(connection.addr.sin_addr.s_addr, message.regUpdateDataGetData());
             puts("Node has been updated");
             break;
