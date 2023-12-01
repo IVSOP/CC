@@ -350,7 +350,6 @@ void Client::commandParser(const char * dir) {
             }
 
 			fetchFile(dir,filename.c_str(), hash, receivedData);
-
         } else {
             printf("Invalid command\n");
         }
@@ -528,6 +527,7 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
     if(tmp == 1){
         printFull_nodes_tracker();
         printFull_nodes_priority();
+        updateFileNodesServer(hash);
 
         std::cout << "File transfer completed" << std::endl;
     } else{
