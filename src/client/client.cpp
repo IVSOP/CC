@@ -476,11 +476,11 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 	std::vector<std::pair<uint32_t, std::vector<Ip>>> block_nodes = getBlockFiles(receivedData, &maxSize);
 
 	for (std::pair<uint32_t, std::vector<Ip>> &pair : block_nodes) {
-		//printf("block %u owned by: ", pair.first);
+		printf("block %u owned by: ", pair.first);
 		for (Ip &ip : pair.second) {
-			//printf("%s ", inet_ntoa(ip.addr.sin_addr));
+			printf("%s ", inet_ntoa(ip.addr.sin_addr));
 		}
-		//puts("\n");
+		puts("");
 	}
 
 	//criar bitMap vazio para ficheiro que se fez get
@@ -531,7 +531,7 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 
         std::cout << "File transfer completed" << std::endl;
     } else{
-        std::cout << "There seems to have been an error while requesting the given file. Please try again later." << std::endl;
+        std::cout << "There seems to have been an error while requesting the given file. Please try again later. " << std::endl;
         std::filesystem::remove(filename);
     }
 
