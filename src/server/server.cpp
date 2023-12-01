@@ -37,6 +37,10 @@ void Server::addNewInfo(uint32_t ip, FS_Track::RegUpdateData &newNode) {
     if (found) { // se já existiam blocos do ficheiro
         puts("Found related file to the given node");
 
+        for(int i = 0; i < receivedBlocks.size(); i++){
+            printf("Block %d %s\n", i, receivedBlocks.at(i) ? "received" : "not received");
+        }
+
         iterPair.second = bitMap(receivedBlocks);
     } else { // se ainda não exista par (nodo, blocos do ficheiro)
         puts("No related file found to the given node");
