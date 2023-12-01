@@ -646,6 +646,10 @@ void Client::RespondBlockData(const FS_Transfer_Info& info) {
 //atualiza servidor com nodos possuidos atualmente
 void Client::updateFileNodesServer(uint64_t fileHash) {
 	bitMap& fileMap = this->blocksPerFile[fileHash];
+
+    for(int i = 0; i < fileMap.size(); i++){
+        printf("Block %d %s\n", i, fileMap.at(i) ? "got it" : "don't have it");
+    }
 	//int finalIndex = fileMap.size() - 1; //índice máximo do vector que vai ser enviado ao servidor
 
 	// calcular índice máximo com true, para enviar só o tamanho necessário ao servidor
