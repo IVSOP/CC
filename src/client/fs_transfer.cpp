@@ -98,7 +98,7 @@ BlockRequestData::BlockRequestData(const uint32_t *ids, ssize_t size) {
 }
 
 void BlockRequestData::setData(const __uint32_t *ids, ssize_t size) {
-    if ((unsigned long) size > MAX_BLOCKS) {
+    if ((unsigned long) size > BLOCK_SIZE) {
         print_error("size too big for array");
     }
     memcpy(this->blockID, ids, size); // devia ser sempre MAX_BLOCKS?

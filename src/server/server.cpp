@@ -44,9 +44,11 @@ void Server::addNewInfo(uint32_t ip, FS_Track::RegUpdateData &newNode) {
             nodeBlocks.insert(nodeBlocks.begin() + i, nodeBlocks.at(i) || receivedBlocks.at(i));
         }
 
-        // Add new values to bitMap
-        for(uint32_t i = min; i < max; i++){
-            nodeBlocks.push_back(receivedBlocks.at(i));
+        if(receivedSize > min){
+            // Add new values to bitMap
+            for (uint32_t i = min; i < max; i++) {
+                nodeBlocks.push_back(receivedBlocks.at(i));
+            }
         }
 
     } else { // se ainda não exista par (nodo, blocos do ficheiro)
