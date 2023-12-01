@@ -5,7 +5,6 @@
 #include <sys/stat.h> // TODO
 #include <algorithm>
 #include <condition_variable>
-#include <iomanip>
 #include <filesystem>
 
 #define SERVER_IP "0.0.0.0"
@@ -15,7 +14,7 @@
 
 Client::Client() // por default sockets aceitam tudo
     : socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), dispatchTable(), nodes_priority_lock(),
-	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), node_sent_reg()
+	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
 {
     // register
     initUploadLoop();
@@ -26,7 +25,7 @@ Client::Client() // por default sockets aceitam tudo
 
 Client::Client(char* dir) // por default sockets aceitam tudo
 	: socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
-	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), node_sent_reg()
+	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
 {
     // register
     initUploadLoop();
@@ -38,7 +37,7 @@ Client::Client(char* dir) // por default sockets aceitam tudo
 
 Client::Client(char* dir, const std::string &IPv4)
 	: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
-	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), node_sent_reg()
+	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
 {
     // register
     initUploadLoop();
@@ -50,7 +49,7 @@ Client::Client(char* dir, const std::string &IPv4)
 
 Client::Client(char* dir, const std::string &svIPv4, const std::string &myIPv4)
 : socketToServer(svIPv4), udpSocket(myIPv4), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
-	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), node_sent_reg()
+	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
 {
 	// register
     initUploadLoop();
@@ -64,29 +63,35 @@ Client::~Client() {
     udpSocket.closeSocket();
 }
 
-/*
-void printResponsePacket(FS_Transfer_Info& info) {
-	BlockSendData * b = static_cast<BlockSendData *> (info.packet.getData());
-	printf("BlockSendData packet>>>\n");
-	printf("sending to IP: %s, checksum:%u (it is %s), opcode: %u sizeOfData: %u fileId: %llu, blockId: %d\ndata as string: [%s]\n", inet_ntoa(info.addr.sin_addr), info.packet.checksum,
-		info.packet.calculateChecksum() == info.packet.checksum ? "correct" : "wrong",
-		info.packet.getOpcode(), info.packet.getSize(), info.packet.getId(), b->blockID,b->data);
-	printf("\n");
-}
 
-void PrintRequestPacket(FS_Transfer_Info& info) {
-	BlockRequestData * b = static_cast<BlockRequestData *> (info.packet.getData());
-	printf("BlockRequestData packet>>>\n");
-	printf("sending to IP: %s, checksum: %u, opcode: %u, sizeOfData: %u, fileId: %llu\n",inet_ntoa(info.addr.sin_addr), info.packet.checksum,
-		info.packet.getOpcode(),info.packet.getSize(), info.packet.id);
+// void printResponsePacket(FS_Transfer_Info& info) {
+// 	BlockSendData * b = static_cast<BlockSendData *> (info.packet.getData());
+// 	printf("BlockSendData packet>>>\n");
+// 	printf("sending to IP: %s, checksum:%u (it is %s), opcode: %u sizeOfData: %u fileId: %llu, blockId: %d\n", inet_ntoa(info.addr.sin_addr), info.packet.checksum,
+// 		info.packet.calculateChecksum() == info.packet.checksum ? "correct" : "wrong",
+// 		info.packet.getOpcode(), info.packet.getSize(), info.packet.getId(), b->blockID);
+// 	printf("Time packet was initially sent, not current time:\n");
+// 	sys_nanoseconds sent_time = sys_nanoseconds(std::chrono::nanoseconds(info.packet.timestamp)); 
+// 	NodesRTT::printTimePoint(sent_time);
+// 	printf("\n");
+// }
 
-	printf("blockIDs requested: ");
-	for (uint32_t i = 0; i < info.packet.getSize() / 4; i++) {
-		printf("%d ,",b->blockID[i]);
-	}
-	printf("\n");
-}
-*/
+// void PrintRequestPacket(FS_Transfer_Info& info) {
+// 	BlockRequestData * b = static_cast<BlockRequestData *> (info.packet.getData());
+// 	printf("BlockRequestData packet>>>\n");
+// 	printf("sending to IP: %s, checksum: %u, opcode: %u, sizeOfData: %u, fileId: %llu\n",inet_ntoa(info.addr.sin_addr), info.packet.checksum,
+// 		info.packet.getOpcode(),info.packet.getSize(), info.packet.id);
+
+// 	sys_nanoseconds sent_time = sys_nanoseconds(std::chrono::nanoseconds(info.packet.timestamp)); 
+// 	NodesRTT::printTimePoint(sent_time);
+
+// 	printf("blockIDs requested: ");
+// 	for (uint32_t i = 0; i < info.packet.getSize() / 4; i++) {
+// 		printf("%d ,",b->blockID[i]);
+// 	}
+// 	printf("\n");
+// }
+
 
 // read from socket into a buffer, does nothing else
 void Client::readLoop() {
@@ -95,8 +100,6 @@ void Client::readLoop() {
 	FS_Transfer_Info info;
 	while (true) {
 		udpSocket.receiveData(&info.packet, FS_TRANSFER_PACKET_SIZE, &info.addr);
-		
-		info.timestamp = std::chrono::system_clock::now(); // isto ainda é preciso??
 		inputBuffer.push(info);
 
 		puts("packet received");
@@ -112,7 +115,6 @@ void Client::writeLoop() {
 		info = outputBuffer.pop();
 
         udpSocket.sendData(&info.packet, FS_TRANSFER_PACKET_SIZE, &info.addr);
-
 		puts("packet sent");
     }
 }
@@ -150,8 +152,6 @@ void Client::rightChecksum(const FS_Transfer_Info& info) {
 
     (this->*dispatchTable[opcode])(info); // assign data to function with respective opcode
 
-	//tirei temporariamente
-	//printPacket(info);
 }
 
 // verificar se blocos pedidos deram timeout
@@ -195,36 +195,21 @@ void Client::updateNodePriority(const Ip& nodeIp, uint32_t value) {
 //assume-se que UDP é zoom fast e não há delays a espera em buffers
 // push packet to output buffer
 void Client::sendInfo(FS_Transfer_Info &info) {
-	sys_nanoseconds receivedTime = std::chrono::system_clock::now(); // voltei a atualizar aqui o tempo para ser mais accurate, caguei onde tiver antes definido já
-	regPacketSentTime(info, receivedTime);
+
 	outputBuffer.push(info);
 }
 
-//registar tempo de envio de um pacote
-void Client::regPacketSentTime(const FS_Transfer_Info &info, sys_nanoseconds timestamp) {
-	if (info.packet.getOpcode() == 0) {
-		BlockRequestData block = info.packet.data.blockRequestData;
-		Ip nodeIp = Ip(info.addr);
-		int size = info.packet.getSize() / sizeof(uint32_t); //tamanho do array
-		for (int i = 0; i < size; i++) {
-			// printf("processing block: %d\n", block.blockID[i]);
-			insert_regPacket(nodeIp,info.packet.id,block.blockID[i],timestamp);
-			sys_nanoseconds val = this->node_sent_reg[nodeIp][{info.packet.id,block.blockID[i]}];
-			printf("Sent packet %d, start time:\n",block.blockID[i]);
-			printTimePoint(val);
-		}
-	}
-}
 
 //registar RTT aquando da chegada de pacote pedido
 void Client::updateNodeResponseTime(const FS_Transfer_Info& info, sys_nanoseconds timeArrived) {
-	sys_nanoseconds timeSent;
+	sys_nanoseconds timeSent = sys_nanoseconds(std::chrono::nanoseconds(info.packet.timestamp));
+
 	if (info.packet.getOpcode() == 1) { // se pacote recebido for dados de bloco pedido
 		Ip nodeIp = Ip(info.addr);
-		BlockSendData block = info.packet.data.blockData;
-		bool found = find_remove_regPacket(nodeIp,info.packet.id,block.blockID, &timeSent);
 
-        if (found) insert_regRTT(nodeIp,timeSent,timeArrived);
+		if (!this->blocksPerFile[info.packet.id][info.packet.data.blockData.blockID]) { // se for a primeira vez que bloco chega, atualiza RTT. Se for bloco duplicado pode deturpar RTT (acho?), por isso ignora-se
+       		insert_regRTT(nodeIp,timeSent,timeArrived);
+		}
 
 		/*if (found) {// se registo de bloco recebido ainda existe, aka não estamos a receber dados de bloco duplicado
 			//printf("Received packet:");
@@ -236,44 +221,6 @@ void Client::updateNodeResponseTime(const FS_Transfer_Info& info, sys_nanosecond
 	}
 }
 
-//inserts packet into node_sent_reg
-void Client::insert_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, const sys_nanoseconds& startTime) {
-	// Se nodo não existir, criar mapa novo
-	if (node_sent_reg.find(nodeIp) == node_sent_reg.end()) {
-		std::unordered_map<std::pair<uint64_t, uint32_t>, sys_nanoseconds, KeyHash> innerMap = std::unordered_map<std::pair<uint64_t, uint32_t>, sys_nanoseconds, KeyHash>();
-		node_sent_reg.emplace(nodeIp, innerMap);
-	} 
-
-	auto& innerMap = node_sent_reg[nodeIp];
-
-	// Se par não existe para esse nodo, criar
-	std::pair<uint64_t, uint32_t> pair = std::make_pair(file,blockN);
-	if (innerMap.find(pair) == innerMap.end()) {
-		innerMap.insert({pair,startTime});
-	}
-	//Se já existe par, está a pedir repetidamente um bloco -> Mantemos tempo mais antigo de pedido de bloco para o cálculo do RTT
-}
-
-//finds packet in node_sent_reg and removes it if found
-// returns false if not found
-bool Client::find_remove_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, sys_nanoseconds * retValue) {
-	// printf("entered find_remove\n");
-	bool result = false;
-	//se existir dados para nodo, e respetivo par
-	auto outerIt = node_sent_reg.find(nodeIp);
-
-	if (outerIt != node_sent_reg.end()) { // se nodo existir (desnecessario mas so por seguranca)
-		std::unordered_map<std::pair<uint64_t, uint32_t>, sys_nanoseconds, KeyHash>& innerMap = outerIt->second;
-		std::pair<uint64_t, uint32_t> pair = {file,blockN};
-		auto innerIt = innerMap.find(pair);
-		if (innerIt != innerMap.end()) {// se par existir -> significa que é primeira vez que este bloco é recebido
-			result = true;
-			*retValue = innerIt->second;
-			innerMap.erase(pair); //dá para receber o iterador na posição atual como argumento 
-		}
-	}
-	return result;
-}
 
 //insere novo valor em nodes_tracker
 void Client::insert_regRTT(const Ip& nodeIp, const sys_nanoseconds& timeSent, const sys_nanoseconds& timeReceived) {
@@ -282,22 +229,6 @@ void Client::insert_regRTT(const Ip& nodeIp, const sys_nanoseconds& timeSent, co
 	this->nodes_tracker_lock.unlock();
 }
 
-void Client::printFull_node_sent_reg() {
-	std::cout << "\nFULL PRINT FOR NODE_SENT_REG----" << std::endl;
-	for( const auto& outerPair: node_sent_reg) {
-		const Ip& ip = outerPair.first;
- 		std::cout << "IP: " << inet_ntoa(ip.addr.sin_addr) << ", Port: " << ntohs(ip.addr.sin_port) << std::endl;
-
-		for(const auto& innerPair: outerPair.second) {
-			const std::pair<uint64_t, uint32_t>& key = innerPair.first;
-			sys_nanoseconds value = innerPair.second;
-			//const std::time_t t_c = std::chrono::system_clock::to_time_t(value);
-			std::cout << "  Key: {" << key.first << ", " << key.second << "}, Value: " << std::endl;
-			printTimePoint(value);
-		}
-	}
-	printf("\n");
-}
 
 void Client::printFull_nodes_tracker() {
 	std::cout << "\nFULL PRINT FOR NODES_TRACKER----\n" << std::endl;
@@ -309,36 +240,13 @@ void Client::printFull_nodes_tracker() {
 		printf("RTTs size: %d\n", rtts.size);
 		for (uint32_t i=0;i<rtts.size;i++) {
 			std::cout << " " << std::endl;
-			printTimeDiff(rtts.arr[i]);
+			NodesRTT::printTimeDiff(rtts.arr[i]);
 		}
 		for (uint32_t i=0;i<NODES_RTT_TRACK_SIZE-rtts.size;i++) {
 			std::cout << "no data " << std::endl;
 		}
 	}
 	printf("\n");
-}
-
-void Client::printTimePoint(const sys_nanoseconds& timePoint) {
-    // Convert time point to std::tm
-	auto sys_time_milliseconds = std::chrono::time_point_cast<std::chrono::milliseconds>(timePoint);
-    std::time_t t_c = std::chrono::system_clock::to_time_t(sys_time_milliseconds);
-	std::tm tm = *std::gmtime(&t_c);
-
-    // Get the fractional seconds
-    auto fractional_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(timePoint.time_since_epoch()).count();
-
-    // Print the date with maximum precision
-    std::cout << "Date: " << std::put_time(&tm, "%F %T") << "." << std::setprecision(9) 
-		<< fractional_seconds - static_cast<int>(fractional_seconds) << " UTC" << std::endl;
-}
-
-void Client::printTimeDiff(const sys_nano_diff& timeDiff) {
-    // Convert nanoseconds to seconds for printing
-    auto seconds = std::chrono::duration_cast<std::chrono::duration<double>>(timeDiff).count();
-	 std::cout.precision(15);
-    // Print the duration in seconds with maximum precision
-	std::cout << "Duration in nanoseconds: " << timeDiff.count() << "ns" << std::endl;
-    std::cout << "Duration in seconds: " << seconds << " seconds" << std::endl;
 }
 
 void Client::printFull_nodes_priority() {
@@ -618,7 +526,6 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 	}
 
     if(tmp == 1){
-        printFull_node_sent_reg();
         printFull_nodes_tracker();
         printFull_nodes_priority();
 
@@ -631,7 +538,6 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 	// apagar estruturas
 	this->nodes_tracker.clear();
 	this->nodes_priority.clear();
-	this->node_sent_reg.clear();
 }
 
 //dispatch table
@@ -713,11 +619,11 @@ void Client::ReqBlockData(const FS_Transfer_Info& info) {
 		blockSend.setId(blocks[i]);
 		dataPacket.setId(packet.getId());
 		dataPacket.setOpcode(1);
+		dataPacket.setTimestamp(packet.getTimestamp()); // mantém a timestamp enviada inicialmente
 		dataPacket.setData(static_cast <void*> (&blockSend),sizeof(uint32_t) + dataSize); //setData já altera o size e atualiza checksum
 
 		dataFinal.addr = info.addr; // endereço destino tem de ser passado no info recebido
 		dataFinal.packet = dataPacket;
-		// dataFinal.timestamp = std::time(nullptr); // tempo é definido mesmo antes do push, não necessário aqui
 
 		//printResponsePacket(dataFinal); // debug
 		Client::sendInfo(dataFinal);
@@ -740,14 +646,19 @@ void Client::RespondBlockData(const FS_Transfer_Info& info) {
 //atualiza servidor com nodos possuidos atualmente
 void Client::updateFileNodesServer(uint64_t fileHash) {
 	bitMap& fileMap = this->blocksPerFile[fileHash];
-	int finalIndex = fileMap.size() - 1; //índice máximo do vector que vai ser enviado ao servidor
+	//int finalIndex = fileMap.size() - 1; //índice máximo do vector que vai ser enviado ao servidor
 
 	// calcular índice máximo com true, para enviar só o tamanho necessário ao servidor
-	for (; finalIndex >= 0; finalIndex--) {
-		if (fileMap[finalIndex]) break;
-	}
+	// for (; finalIndex >= 0; finalIndex--) {
+	// 	if (fileMap[finalIndex]) break;
+	// }
+	// printf("Sending blocks 0-%d\n",finalIndex);
 
-	bitMap mapForServer(fileMap.begin(),fileMap.begin() + finalIndex + 1);
+	// queria mandar só vector com máximo valor de true encontrado, em vez de sempre tudo, 
+	// n dá para permitir isso do lado do servidor?
+
+	//bitMap mapForServer(fileMap.begin(),fileMap.begin() + finalIndex); 
+	bitMap mapForServer(fileMap);
 
 	//Enviar ao servidor
 	puts("Updating with server");
@@ -814,14 +725,15 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 		lock.unlock();
 		
         BlockRequestData data = BlockRequestData(arr, size);
+		sys_nanoseconds sentTime = std::chrono::system_clock::now();
 
-        packet = FS_Transfer_Packet(0, hash, &data, (uint32_t) size);
+        packet = FS_Transfer_Packet(0, hash, sentTime, &data, (uint32_t) size);
 
 		info = FS_Transfer_Info(packet, i->first);
 
+		//PrintRequestPacket(info); // debug
+	
         Client::sendInfo(info);
-
-		// apaguei daqui!!!!!!!!!!!
     }
 
     delete [] arr;

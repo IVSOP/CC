@@ -168,7 +168,7 @@ struct Client {
     void updateFileNodesServer(uint64_t fileHash);
 
     // Node scheduling -----------
-    void regPacketSentTime(const FS_Transfer_Info& info, sys_nanoseconds sentTimestamp);
+    // void regPacketSentTime(const FS_Transfer_Info& info, sys_nanoseconds sentTimestamp);
     void updateNodeResponseTime(const FS_Transfer_Info& info, sys_nanoseconds arrivedTimestamp);
     void insert_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, const sys_nanoseconds& startTime);
     bool find_remove_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, sys_nanoseconds * retValue);
@@ -176,9 +176,7 @@ struct Client {
     uint32_t getNodePriority(const Ip& nodeIp);
     void updateNodePriority(const Ip& nodeIp, uint32_t value);
 
-    void printTimePoint(const sys_nanoseconds& timePoint);
-    void printTimeDiff(const sys_nano_diff& timeDiff);
-    void printFull_node_sent_reg();
+    // void printFull_node_sent_reg();
     void printFull_nodes_tracker();
     void printFull_nodes_priority();
 
@@ -208,7 +206,6 @@ struct Client {
     std::unordered_map<Ip, uint32_t> nodes_priority; // priority given to each node //começa com prioridade 0
     std::mutex nodes_tracker_lock;
     std::unordered_map<Ip, NodesRTT> nodes_tracker; // tracks last x amount of RTTs
-    std::unordered_map<Ip, std::unordered_map<std::pair<uint64_t,uint32_t>,sys_nanoseconds, KeyHash>> node_sent_reg;// tracks timestamps for different node requests
 
     //inicializados só uma vez, alterados com o decorrer
     FS_Transfer_Info dataFinal;

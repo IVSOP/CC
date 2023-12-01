@@ -305,12 +305,12 @@ void test_node_reg_packet_times() {
 
     sys_nanoseconds sentTime = std::chrono::system_clock::now();
     std::cout << "Sent time: " << std::endl;
-    c.printTimePoint(sentTime);
+     NodesRTT::printTimePoint(sentTime);
 
     // enviar pedido de bloco ---
 
-    c.regPacketSentTime(info,sentTime); 
-    c.printFull_node_sent_reg();
+    // c.regPacketSentTime(info,sentTime); 
+    // c.printFull_node_sent_reg();
 
     //esperar 3 seg --
     sleep(3); 
@@ -325,10 +325,10 @@ void test_node_reg_packet_times() {
 
     sys_nanoseconds sentTime2 = std::chrono::system_clock::now();
     std::cout << "\nSent time2: " << std::endl;
-    c.printTimePoint(sentTime2);
+    NodesRTT::printTimePoint(sentTime2);
 
     // enviar mesmo pedido ---
-    c.regPacketSentTime(info,sentTime); // new time shouldn't be recorded for same block of same file
+    // c.regPacketSentTime(info,sentTime); // new time shouldn't be recorded for same block of same file
 
     //esperar 3 seg --
     sleep(3); 
@@ -337,7 +337,7 @@ void test_node_reg_packet_times() {
 
     sys_nanoseconds receivedTime = std::chrono::system_clock::now();
     std::cout << "\nReceived time: " << std::endl;
-    c.printTimePoint(receivedTime);
+     NodesRTT::printTimePoint(receivedTime);
 
     // receber pacote ---
     c.updateNodeResponseTime(info2,receivedTime);
@@ -350,7 +350,7 @@ void test_node_reg_packet_times() {
 
     // estimativa só tem precisao de 7 decimais à direita do segundo??? Acho que é do MAC
     std::cout << "\nestimatedRTT: " << estimatedRTT << "\n" << std::endl; 
-    c.printFull_node_sent_reg();
+    // c.printFull_node_sent_reg();
     c.printFull_nodes_tracker();
 }
 

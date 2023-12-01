@@ -11,6 +11,13 @@ FS_Transfer_Packet::FS_Transfer_Packet(uint8_t opc, uint64_t id, const BlockRequ
     this->setData(data, size);
 }
 
+FS_Transfer_Packet::FS_Transfer_Packet(uint8_t opc, uint64_t id, sys_nanoseconds& time,  BlockRequestData *data, uint32_t size) {
+    this->setOpcode(opc);
+    this->setId(id);
+    this->setTimestamp(time);
+    this->setData(data, size);
+}
+
 FS_Transfer_Packet::FS_Transfer_Packet(uint8_t opc, uint64_t id, const BlockSendData *data, uint32_t size) {
     this->setOpcode(opc);
     this->setId(id);
@@ -46,6 +53,16 @@ void FS_Transfer_Packet::setSize(uint32_t size) {
 
 void FS_Transfer_Packet::setId(uint64_t id) {
     this->id = id;
+}
+
+void FS_Transfer_Packet::setTimestamp(uint64_t timestamp) {
+    this->timestamp = timestamp;
+}
+
+void FS_Transfer_Packet::setTimestamp(sys_nanoseconds time) {
+    sys_nano_diff nanoDiff = time.time_since_epoch();
+    uint64_t timeUint64 = static_cast<uint64_t>(nanoDiff.count());
+    this->timestamp = timeUint64;
 }
 
 //já atualiza size e checksum

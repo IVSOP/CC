@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <unistd.h>
 #include <cstring>
+#include "timestamps_common.h"
 
 #define BLOCK_SIZE 1024 // 1 kib de dados
 
@@ -66,6 +67,8 @@ struct FS_Transfer_Packet {
 
     FS_Transfer_Packet(uint8_t opc, uint64_t id, const BlockRequestData *data, uint32_t size);
 
+    FS_Transfer_Packet(uint8_t opc, uint64_t id, sys_nanoseconds& timeSent, BlockRequestData *data, uint32_t size);
+
     FS_Transfer_Packet(uint8_t opc, uint64_t id, const BlockSendData *data, uint32_t size);
 
     ~FS_Transfer_Packet();
@@ -95,6 +98,10 @@ struct FS_Transfer_Packet {
         return this->id;
     }
 
+    constexpr uint64_t getTimestamp() const {
+        return this->timestamp;
+    }
+
     constexpr void *getData() {
         return static_cast<void *>(&data);
     }
@@ -115,6 +122,9 @@ struct FS_Transfer_Packet {
     void setId(uint64_t value);
 
     void setData(const void *data, ssize_t size);
+
+    void setTimestamp(uint64_t time);
+    void setTimestamp(sys_nanoseconds time);
     // end setters
 
     //buffer related
