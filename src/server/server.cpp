@@ -12,6 +12,8 @@ Server::~Server() {
 void Server::addNewInfo(uint32_t ip, FS_Track::RegUpdateData &newNode) {
     std::unique_lock<std::mutex> lock = std::unique_lock<std::mutex>(mtx);
 
+    puts("Entered function");
+
     uint64_t hash = newNode.getFileHash();
     bitMap receivedBlocks = newNode.getBlockNumbers(); // vetor copiado com blocos novos
 
@@ -33,6 +35,8 @@ void Server::addNewInfo(uint32_t ip, FS_Track::RegUpdateData &newNode) {
     }
 
     if (found) { // se já existiam blocos do ficheiro
+        puts("Found related file to the given node");
+
         bitMap nodeBlocks = iterPair.second;
         uint32_t curSize = nodeBlocks.size();
         uint32_t receivedSize = receivedBlocks.size();
@@ -44,14 +48,19 @@ void Server::addNewInfo(uint32_t ip, FS_Track::RegUpdateData &newNode) {
             nodeBlocks.insert(nodeBlocks.begin() + i, nodeBlocks.at(i) || receivedBlocks.at(i));
         }
 
+        puts("Old blocks updated");
+
         if(receivedSize > min){
             // Add new values to bitMap
             for (uint32_t i = min; i < max; i++) {
                 nodeBlocks.push_back(receivedBlocks.at(i));
             }
+
+            puts("New blocks updated");
         }
 
     } else { // se ainda não exista par (nodo, blocos do ficheiro)
+        puts("No related file found to the given node");
         (mapIter->second).emplace_back(ip, receivedBlocks); // criar novo par (nodo, blocos do ficheiro)
     }
 
@@ -89,6 +98,7 @@ std::vector<FS_Track::PostFileBlocksData> Server::getNodesWithFile(uint64_t hash
 }
 
 void Server::registerUpdateNode(uint32_t ip, std::vector<FS_Track::RegUpdateData> data){
+    int i = 0;
     for(FS_Track::RegUpdateData& regData: data){
         this->addNewInfo(ip, regData);
     }
