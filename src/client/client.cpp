@@ -63,7 +63,8 @@ Client::Client(char* dir, const std::string &svIPv4, const std::string &myIPv4)
 Client::~Client() {
     udpSocket.closeSocket();
 }
-    
+
+/*
 void printResponsePacket(FS_Transfer_Info& info) {
 	BlockSendData * b = static_cast<BlockSendData *> (info.packet.getData());
 	printf("BlockSendData packet>>>\n");
@@ -85,6 +86,7 @@ void PrintRequestPacket(FS_Transfer_Info& info) {
 	}
 	printf("\n");
 }
+*/
 
 // read from socket into a buffer, does nothing else
 void Client::readLoop() {
@@ -122,11 +124,8 @@ void Client::answerRequestsLoop() {
 		info = inputBuffer.pop();
 		sys_nanoseconds timeArrived = std::chrono::system_clock::now();
 		updateNodeResponseTime(info, timeArrived); // se vier pacote com erro, contabilizo na mesma para RTT, independemente se está correto ou não
-		if (info.packet.checkErrors() == false) { // se houver erro nao faz sentido estar a ler o opcode, check tem de ser feito aqui
-			wrongChecksum(info);
-		} else {
-			rightChecksum(info);
-		}
+
+        !info.packet.checkErrors() ? wrongChecksum(info) : rightChecksum(info); // se houver erro nao faz sentido estar a ler o opcode, check tem de ser feito aqui
 	}
 }
 
@@ -141,15 +140,16 @@ void Client::wrongChecksum(const FS_Transfer_Info&info) {
 // só se pacote for response, aumenta prioridade do nodo
 void Client::rightChecksum(const FS_Transfer_Info& info) {
 	uint8_t opcode = info.packet.getOpcode();
-	if (opcode <= 1) {
-		if (opcode == 1) {
-			updateNodePriority(Ip(info.addr), NODE_VALUE_SUCCESS);
-		}
-		(this->*dispatchTable[opcode])(info); // assign data to function with respective opcode
-	} else {
-		perror("No handler found for packet Opcode");
-		return;
-	}
+
+    if(opcode > 1) {
+        perror("No handler found for packet Opcode");
+        return;
+    }
+
+    if(opcode == 1) updateNodePriority(Ip(info.addr), NODE_VALUE_SUCCESS);
+
+    (this->*dispatchTable[opcode])(info); // assign data to function with respective opcode
+
 	//tirei temporariamente
 	//printPacket(info);
 }
@@ -161,17 +161,18 @@ void Client::rightChecksum(const FS_Transfer_Info& info) {
 void Client::checkTimeoutNodes(std::unordered_map<Ip, std::vector<uint32_t>>& requested_blocks, uint64_t fileHash, sys_milli_diff timeoutTime) {
 	for (auto i = requested_blocks.begin(); i != requested_blocks.end(); i++) {
 		for (uint32_t block: i->second) {
-			if (this->blocksPerFile[fileHash][block] == false) {// se bloco não tiver chegado no tempo definido // excusa de haver locks, se ler errado porque chega no mesmo milisegundo o bloco, conta como timeout na mesma
-				updateNodePriority(i->first, NODE_VALUE_TIMEOUT);
-				printf("Timeout occured on node: %s, blockRequest: %d\n", inet_ntoa(i->first.addr.sin_addr), block);
+            if (this->blocksPerFile[fileHash][block]) continue;
 
-				std::unique_lock<std::mutex> lock(this->nodes_tracker_lock);
-				nodes_tracker[i->first].receive2(std::chrono::duration_cast<std::chrono::nanoseconds>(timeoutTime));
-				this->nodes_tracker_lock.unlock();
+			// se bloco não tiver chegado no tempo definido // excusa de haver locks, se ler errado porque chega no mesmo milisegundo o bloco, conta como timeout na mesma
+            updateNodePriority(i->first, NODE_VALUE_TIMEOUT);
+            printf("Timeout occured on node: %s, blockRequest: %d\n", inet_ntoa(i->first.addr.sin_addr), block);
 
-				NodesRTT::calcTimeoutTime(this->nodes_tracker[i->first].RTT()); // print do valor atualizado de timeout para esse nodo
-				break; // se para um nodo algum bloco não chegar, calcula-se só um timeout, pois à partida se deu timeout para um bloco dará para vários, e n queremos penalizar exageradamente este nodo
-			}
+            std::unique_lock<std::mutex> lock(this->nodes_tracker_lock);
+            nodes_tracker[i->first].receive2(std::chrono::duration_cast<std::chrono::nanoseconds>(timeoutTime));
+            this->nodes_tracker_lock.unlock();
+
+            NodesRTT::calcTimeoutTime(this->nodes_tracker[i->first].RTT()); // print do valor atualizado de timeout para esse nodo
+            break; // se para um nodo algum bloco não chegar, calcula-se só um timeout, pois à partida se deu timeout para um bloco dará para vários, e n queremos penalizar exageradamente este nodo
 		}
 	}
 }
@@ -222,13 +223,16 @@ void Client::updateNodeResponseTime(const FS_Transfer_Info& info, sys_nanosecond
 		Ip nodeIp = Ip(info.addr);
 		BlockSendData block = info.packet.data.blockData;
 		bool found = find_remove_regPacket(nodeIp,info.packet.id,block.blockID, &timeSent);
-		if (found) {// se registo de bloco recebido ainda existe, aka não estamos a receber dados de bloco duplicado
+
+        if (found) insert_regRTT(nodeIp,timeSent,timeArrived);
+
+		/*if (found) {// se registo de bloco recebido ainda existe, aka não estamos a receber dados de bloco duplicado
 			//printf("Received packet:");
 			//printTimePoint(timeSent);
 			insert_regRTT(nodeIp,timeSent,timeArrived); // atualizar lista de RTT do nodo com novo RTT
 			//double nodeRTT = this->nodes_tracker[nodeIp].RTT();
 			//std::cout << "currentRTT in seconds: " << nodeRTT << std::endl;
-		}
+		}*/
 	}
 }
 
@@ -483,13 +487,8 @@ void Client::regDirectory(char* dirPath){
     	// Ignore files "." and ".."
 		// VERY UNSAFE, BANDAID FIX, will probably crash for files with 1 char
 		// ir pelo tipo em vez do nome??
-		if (strcmp(ent->d_name, ".") == 0) {
-			// ...
-		} else if (strcmp(ent->d_name, "..") == 0) {
-			// ...
-		} else {
-        	this->regFile(directory.c_str(), ent->d_name);
-		}
+
+        if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) this->regFile(directory.c_str(), ent->d_name);
     }
 }
 
@@ -569,11 +568,11 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 	std::vector<std::pair<uint32_t, std::vector<Ip>>> block_nodes = getBlockFiles(receivedData, &maxSize);
 
 	for (std::pair<uint32_t, std::vector<Ip>> &pair : block_nodes) {
-		printf("block %u owned by: ", pair.first);
+		//printf("block %u owned by: ", pair.first);
 		for (Ip &ip : pair.second) {
-			printf("%s ", inet_ntoa(ip.addr.sin_addr));
+			//printf("%s ", inet_ntoa(ip.addr.sin_addr));
 		}
-		puts("\n");
+		//puts("\n");
 	}
 
 	//criar bitMap vazio para ficheiro que se fez get
@@ -611,7 +610,7 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 			break;
 		}
 
-		std::cout << "Iteration maxRTT: " << rtt << "s" << std::endl; //ultima iteração dá sempre rtt = 0, mas tá correto, porque n chega a entrar no loop dos nodos
+		//std::cout << "Iteration maxRTT: " << rtt << "s" << std::endl; //ultima iteração dá sempre rtt = 0, mas tá correto, porque n chega a entrar no loop dos nodos
 		std::chrono::milliseconds timeoutTime = NodesRTT::calcTimeoutTime(rtt); // tempo de timeout
 		std::this_thread::sleep_for(timeoutTime);
 		checkTimeoutNodes(nodes_blocks, hash, timeoutTime);
@@ -623,7 +622,7 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
         printFull_nodes_tracker();
         printFull_nodes_priority();
 
-        std::cout << "File transfer completed\n" << std::endl;
+        std::cout << "File transfer completed" << std::endl;
     } else{
         std::cout << "There seems to have been an error while requesting the given file. Please try again later." << std::endl;
         std::filesystem::remove(filename);
