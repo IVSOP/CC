@@ -37,7 +37,7 @@ void Server::addNewInfo(uint32_t ip, FS_Track::RegUpdateData &newNode) {
     if (found) { // se já existiam blocos do ficheiro
         puts("Found related file to the given node");
 
-        iterPair.second = receivedBlocks;
+        iterPair.second = bitMap(receivedBlocks);
     } else { // se ainda não exista par (nodo, blocos do ficheiro)
         puts("No related file found to the given node");
         (mapIter->second).emplace_back(ip, receivedBlocks); // criar novo par (nodo, blocos do ficheiro)
