@@ -13,7 +13,7 @@
 
 // deve ser 1044
 // sizeof direto daria 1048
-#define FS_TRANSFER_PACKET_SIZE sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t) + sizeof(FS_Data)
+#define FS_TRANSFER_PACKET_SIZE sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t) + sizeof(FS_Data) + sizeof(uint64_t)
 
 // enviar dados de um bloco
 // opcode 1
@@ -73,6 +73,7 @@ struct FS_Transfer_Packet {
     uint32_t checksum;
     uint32_t opc_size;
     uint64_t id;
+	uint64_t timestamp;
     FS_Data data;
 
 
@@ -150,7 +151,7 @@ Assim, nao tem de haver serialization nem nada porque ja ta tudo feito
 #define FS_TRANSFER_DEBUG
 #ifdef FS_TRANSFER_DEBUG
 
-static_assert(offsetof(FS_Transfer_Packet, data) == sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t),
+static_assert(offsetof(FS_Transfer_Packet, data) == sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint64_t),
               "Error: FS_Transfer has padding which is not accounted for");
 // static_assert(sizeof(FS_Transfer_Packet) == sizeof(FS_Data) + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint64_t), "Error: BlockData has padding which is not accounted for");
 
