@@ -474,14 +474,6 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 	// par <este bloco, estes nodos>
 	std::vector<std::pair<uint32_t, std::vector<Ip>>> block_nodes = getBlockFiles(receivedData, &maxSize);
 
-	for (std::pair<uint32_t, std::vector<Ip>> &pair : block_nodes) {
-		printf("block %u owned by: ", pair.first);
-		for (Ip &ip : pair.second) {
-			printf("%s ", inet_ntoa(ip.addr.sin_addr));
-		}
-		puts("");
-	}
-
 	//criar bitMap vazio para ficheiro que se fez get
 	regNewFile(dir, filename, maxSize); 
 
@@ -647,32 +639,14 @@ void Client::RespondBlockData(const FS_Transfer_Info& info) {
 void Client::updateFileNodesServer(uint64_t fileHash) {
 	bitMap& fileMap = this->blocksPerFile[fileHash];
 
-    for(int i = 0; i < fileMap.size(); i++){
-        printf("Block %d %s\n", i, fileMap.at(i) ? "got it" : "don't have it");
-    }
-	//int finalIndex = fileMap.size() - 1; //índice máximo do vector que vai ser enviado ao servidor
-
-	// calcular índice máximo com true, para enviar só o tamanho necessário ao servidor
-	// for (; finalIndex >= 0; finalIndex--) {
-	// 	if (fileMap[finalIndex]) break;
-	// }
-	// printf("Sending blocks 0-%d\n",finalIndex);
-
-	// queria mandar só vector com máximo valor de true encontrado, em vez de sempre tudo, 
-	// n dá para permitir isso do lado do servidor?
-
-	//bitMap mapForServer(fileMap.begin(),fileMap.begin() + finalIndex); 
-	bitMap mapForServer(fileMap);
-
 	//Enviar ao servidor
 	puts("Updating with server");
     std::vector<FS_Track::RegUpdateData> data = std::vector<FS_Track::RegUpdateData>();
 	//debug
 
-    data.emplace_back(fileHash, mapForServer);
+    data.emplace_back(fileHash, fileMap);
 	FS_Track::sendUpdateMessage(this->socketToServer, data);
-	//puts("File registration sent");
-};
+}
 
 //compara número de nodos (aka vector<Ip>.size) que podem fornecer um bloco (uint32_t)
 int cmpBlocksAvailability(std::pair<uint32_t , std::vector<Ip>>& a, std::pair<uint32_t , std::vector<Ip>>& b){
