@@ -24,17 +24,24 @@ void read_data(Server& server, ServerTCPSocket::SocketInfo& connection, FS_Track
         // Cases 0 and 1 are the same
         // Register node
         case 0:
+            puts("Received register message");
+            server.registerUpdateNode(connection.addr.sin_addr.s_addr, message.regUpdateDataGetData());
+            puts("Node registered");
+            break;
 
         // Update node
         case 1:
+            puts("Received update message");
             server.registerUpdateNode(connection.addr.sin_addr.s_addr, message.regUpdateDataGetData());
+            puts("Node has been updated");
             break;
 
         // Get Message
         case 2:
+            puts("Received get message");
             data = server.getNodesWithFile(message.fsTrackGetHash());
             FS_Track::sendPostMessage(connection, message.fsTrackGetHash(), data);
-            puts("Enviei mensagem Post");
+            puts("Post message has been sent");
             break;
 
         // Post Message
