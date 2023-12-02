@@ -1,0 +1,24 @@
+$TTL 86400
+@ IN SOA Servidor1.cc2023. ivanribeiro.gmail.pt. (
+            2023120201
+            86400
+            7200
+            604800
+            86400 )
+
+; name servers - NS records
+    IN      NS      Servidor1.cc2023.
+    IN      NS      Servidor2.cc2023.
+
+; server records - A records
+@            IN      A      10.4.4.1
+Servidor1.cc2023.    IN      A      10.4.4.1
+Servidor2.cc2023.    IN      A      10.4.4.2
+
+; client records - A records
+Portatil1.cc2023.    IN      A      10.1.1.1
+Portatil2.cc2023.    IN      A      10.1.1.2
+PC1.cc2023.          IN      A      10.2.2.1
+PC2.cc2023.          IN      A      10.2.2.2
+Roma.cc2023.         IN      A      10.3.3.1
+Paris.cc2023.        IN      A      10.3.3.2
