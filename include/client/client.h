@@ -95,7 +95,7 @@ struct FS_Transfer_Info {
 		this->addr.sin_port = htons(UDP_PORT);
         this->addr.sin_addr.s_addr = ip;
 
-        memcpy(&this->packet, &packet, FS_TRANSFER_PACKET_SIZE);
+        memcpy(reinterpret_cast<void *>(&this->packet), &packet, FS_TRANSFER_PACKET_SIZE);
     }
     
     constexpr const FS_Transfer_Packet& getTransferPacket() const {

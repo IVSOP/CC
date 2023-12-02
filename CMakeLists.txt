@@ -23,7 +23,8 @@ add_executable(Server
         src/common/fs_track.cpp
         src/common/TCP_socket.cpp
         src/common/convert_types.cpp
-        src/common/fs_track_test.cpp)
+        src/common/fs_track_test.cpp
+		src/common/socket_common.cpp)
 
 add_executable(Node
         src/client/client.cpp
@@ -34,7 +35,8 @@ add_executable(Node
         src/common/TCP_socket.cpp
         src/common/convert_types.cpp
         src/common/UDP_socket.cpp
-        src/common/fs_track_test.cpp)
+        src/common/fs_track_test.cpp
+		src/common/socket_common.cpp)
 
 target_include_directories(Server
         PUBLIC include/common

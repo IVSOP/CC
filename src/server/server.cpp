@@ -68,7 +68,6 @@ std::vector<FS_Track::PostFileBlocksData> Server::getNodesWithFile(uint64_t hash
 }
 
 void Server::registerUpdateNode(uint32_t ip, std::vector<FS_Track::RegUpdateData> data){
-    int i = 0;
     for(FS_Track::RegUpdateData& regData: data){
         this->addNewInfo(ip, regData);
     }
