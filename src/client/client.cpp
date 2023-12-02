@@ -7,6 +7,9 @@
 #include <condition_variable>
 #include <filesystem>
 
+#include <arpa/inet.h>
+#include <netdb.h>
+
 #define SERVER_IP "0.0.0.0"
 #define FILENAME_BUFFER_SIZE 300
 #define BUFFER_SIZE 1500
@@ -14,7 +17,7 @@
 
 Client::Client() // por default sockets aceitam tudo
     : socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), dispatchTable(), nodes_priority_lock(),
-	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
+	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), nameToIP()
 {
     // register
     initUploadLoop();
@@ -25,7 +28,7 @@ Client::Client() // por default sockets aceitam tudo
 
 Client::Client(char* dir) // por default sockets aceitam tudo
 	: socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
-	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
+	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), nameToIP()
 {
     // register
     initUploadLoop();
@@ -37,7 +40,7 @@ Client::Client(char* dir) // por default sockets aceitam tudo
 
 Client::Client(char* dir, const std::string &IPv4)
 	: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
-	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
+	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), nameToIP()
 {
     // register
     initUploadLoop();
@@ -49,7 +52,7 @@ Client::Client(char* dir, const std::string &IPv4)
 
 Client::Client(char* dir, const std::string &svIPv4, const std::string &myIPv4)
 : socketToServer(svIPv4), udpSocket(myIPv4), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
-	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
+	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), nameToIP()
 {
 	// register
     initUploadLoop();
@@ -740,4 +743,40 @@ Ip Client::selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<I
     }
 
     return ans;
+}
+
+// gethostbyname is an obsolete function according to man page
+Ip Client::getIpFromName(const std::string name) {
+	// nao me apeteceu usar find() e iterators ate me deu umas dores so de pensar
+	if (nameToIP.contains(name) == false) {
+		// DNS lookup
+		    const char *hostname = name.c_str();
+			struct addrinfo hints, *result, *rp;
+			int status;
+
+			memset(&hints, 0, sizeof(struct addrinfo));
+			hints.ai_family = AF_INET;
+			hints.ai_socktype = SOCK_STREAM;
+
+			status = getaddrinfo(hostname, NULL, &hints, &result);
+			if (status != 0) {
+				fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+				exit(EXIT_FAILURE);
+			}
+
+			Ip ip;
+			for (rp = result; rp != NULL; rp = rp->ai_next) {
+				struct sockaddr_in *ipv4_addr = (struct sockaddr_in *)rp->ai_addr;
+
+				char ip_address[INET_ADDRSTRLEN];
+				inet_ntop(AF_INET, &(ipv4_addr->sin_addr), ip_address, INET_ADDRSTRLEN);
+				printf("Name %s resolved to %s\n", hostname, ip_address);
+				ip = Ip(*ipv4_addr);
+				nameToIP[name] = ip;
+			}
+
+			freeaddrinfo(result);
+	} else {
+		return nameToIP[name];
+	}
 }
