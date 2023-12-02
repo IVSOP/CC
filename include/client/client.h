@@ -180,6 +180,9 @@ struct Client {
     void printFull_nodes_tracker();
     void printFull_nodes_priority();
 
+	// gets either from cache or DNS
+	Ip getIpFromName(const std::string name);
+
     ClientTCPSocket socketToServer;
     NodeUDPSocket udpSocket; // usamos apenas 1 socket para tudo
     std::thread readThread, writeThread, answererThread; // 1 thread loop read, 1 thread loop write, 1 thread loop responder pedidos (faz upload)
@@ -211,6 +214,9 @@ struct Client {
     FS_Transfer_Info dataFinal;
     FS_Transfer_Packet dataPacket;
     BlockSendData blockSend;
+
+	// cache para DNS. assumimos que nunca muda depois de ser inserido
+	std::unordered_map<std::string, Ip> nameToIP;
 };
 
 #endif
