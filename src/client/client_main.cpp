@@ -49,7 +49,7 @@ void test_fs_transfer_fields() {
     FS_Transfer_Packet *packet = new FS_Transfer_Packet(2, 524, blocks, 10 * sizeof(uint32_t));
 
     //testar campos do pacote
-    printf("packet opcode: %d, size: %d, hash: %llu, checksum: %d, data: ", packet->getOpcode(), packet->getSize(),
+    printf("packet opcode: %d, size: %d, hash: %lu, checksum: %d, data: ", packet->getOpcode(), packet->getSize(),
            packet->getId(), packet->getChecksum());
 
     uint32_t *testBlockIds = static_cast<BlockRequestData *> (packet->getData())->getData();
@@ -69,7 +69,7 @@ void test_fs_transfer_fields() {
     // setData já atualiza checksum e size
 
     //testar campos
-    printf("packet opcode: %d, size: %d, hash: %llu checksum: %d, data: ", packet->getOpcode(), packet->getSize(),
+    printf("packet opcode: %d, size: %d, hash: %lu checksum: %d, data: ", packet->getOpcode(), packet->getSize(),
            packet->getId(), packet->getChecksum());
 
     char *blockData = static_cast<BlockSendData *> (packet->getData())->getData();

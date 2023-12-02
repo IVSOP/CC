@@ -330,9 +330,9 @@ void Client::commandParser(const char * dir) {
 
         if (command == "get") {
             uint64_t hash = getFilenameHash((char*) filename.c_str(), filename.size());
-			printf("Asking for file %s (%llu)\n", filename.c_str(), hash);
+			printf("Asking for file %s (%lu)\n", filename.c_str(), hash);
 
-			ssize_t tmp = FS_Track::sendGetMessage(this->socketToServer, hash);
+			FS_Track::sendGetMessage(this->socketToServer, hash);
 
             message = FS_Track(); // cursed
 
@@ -435,7 +435,7 @@ void Client::regFile(const char* dir, char* fn) {
 	this->currentBlocksInEachFile.insert({hash,totalBlocks});
 	this->fileDescriptorMap.insert({hash, file});
 
-	printf("file: %s hash %llu\n", filePath, hash);
+	printf("file: %s hash %lu\n", filePath, hash);
 }
 
 //registar ficheiro novo que se faz GET nas estruturas de ficheiros do cliente
@@ -764,6 +764,7 @@ Ip Client::getIpFromName(const std::string name) {
 				exit(EXIT_FAILURE);
 			}
 
+			// vou assumir que nao da mais que 1 nome mas o loop fica aqui da mesma
 			Ip ip;
 			for (rp = result; rp != NULL; rp = rp->ai_next) {
 				struct sockaddr_in *ipv4_addr = (struct sockaddr_in *)rp->ai_addr;
@@ -776,7 +777,7 @@ Ip Client::getIpFromName(const std::string name) {
 			}
 
 			freeaddrinfo(result);
-	} else {
-		return nameToIP[name];
 	}
+	// cursed se der mais do que 1 nome
+	return nameToIP[name];
 }
