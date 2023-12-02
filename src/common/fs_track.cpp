@@ -50,9 +50,8 @@ bitMap FS_Track::RegUpdateData::getBlockNumbers() {
     return bitMap(this->block_numbers);
 };
 
-FS_Track::PostFileBlocksData::PostFileBlocksData(struct in_addr ip, bitMap block_numbers) {
-    this->ip = in_addr();
-    this->ip.s_addr = ip.s_addr;
+FS_Track::PostFileBlocksData::PostFileBlocksData(std::string hostname, bitMap block_numbers) {
+    this->hostname = std::string(hostname);
     this->block_numbers = bitMap(block_numbers);
 }
 
@@ -250,7 +249,7 @@ void FS_Track::postFileBlocksSetData(const std::vector<FS_Track::PostFileBlocksD
     // For each struct
     for (const auto &node_blocks: data) {
         //Serialize Ip and total number of blocks
-        pushUint32IntoVectorUint8(serializedData, node_blocks.ip.s_addr);
+        pushStringIntoVectorUint8(serializedData, node_blocks.hostname);
 
         uint32_t blocks_size = node_blocks.block_numbers.size();
         uint8_t significant_bits = blocks_size % 8;
@@ -289,17 +288,17 @@ std::vector<FS_Track::PostFileBlocksData> FS_Track::postFileBlocksGetData() {
 
     if (len == 0) return deserializedData;
 
-    struct in_addr ip = in_addr();
+    std::string hostname;
 
     // For each struct sent
     for (uint32_t k = 0; k < len; k++) {
         // Get Node Ip
-        ip.s_addr = vptrToUint32(serializedData, &i);
+        hostname = vptrToString(serializedData, &i);
 
         uint32_t blocks_len = vptrToUint32(serializedData, &i);
         uint8_t significant_bits = serializedData[i++];
 
-        deserializedData.emplace_back(ip, bitmap_deserialize(serializedData, &i, blocks_len, significant_bits));
+        deserializedData.emplace_back(hostname, bitmap_deserialize(serializedData, &i, blocks_len, significant_bits));
     }
 
     return deserializedData;

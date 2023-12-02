@@ -12,6 +12,7 @@
 
 #define FILENAME_SIZE 256
 #define SIZE_LENGTH 3
+#define LEN_HOSTNAME 256
 
 class FS_Track {
 private:
@@ -69,10 +70,10 @@ public:
      * Struct used by FS_Track server to send the file blocks each node contains
      */
     struct PostFileBlocksData {
-        struct in_addr ip;
+        std::string hostname;
         bitMap block_numbers;
 
-        PostFileBlocksData(struct in_addr, bitMap);
+        PostFileBlocksData(std::string hostname, bitMap block_numbers);
 
         ~PostFileBlocksData();
     };

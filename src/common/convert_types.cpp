@@ -25,6 +25,18 @@ uint64_t vptrToUint64(void *buffer, uint32_t *idx) {
     return ans;
 }
 
+std::string vptrToString(void *buffer, uint32_t *idx){
+    uint8_t* data = (uint8_t *) buffer;
+
+    uint32_t len = vptrToUint32(buffer, idx);
+
+    std::string ans = std::string();
+
+    for(uint32_t i = 0; i < len; i++) ans.push_back((char) data[(*idx)++]);
+
+    return ans;
+}
+
 void pushUint32IntoVectorUint8(std::vector<uint8_t> *vector, uint32_t value) {
     for (int i = 0; i < 4; ++i) {
         vector->emplace_back((value >> (i * 8)) & 0xFF);
@@ -37,6 +49,14 @@ void pushUint64IntoVectorUint8(std::vector<uint8_t> *vector, uint64_t value) {
 
         vector->emplace_back(val);
     }
+}
+
+void pushStringIntoVectorUint8(std::vector<uint8_t> *vector, std::string const& value) {
+    uint32_t len = value.size();
+
+    pushUint32IntoVectorUint8(vector, len);
+
+    for (uint32_t i = 0; i < len; ++i) vector->emplace_back((uint8_t) value.at(i));
 }
 
 void bitmap_serialize(std::vector<uint8_t> *serializedData, bitMap bit_map, uint32_t total_bits, uint8_t significant_bits){

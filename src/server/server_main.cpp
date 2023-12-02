@@ -10,6 +10,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <netdb.h>
 #include "server.h"
 #include "errors.h"
 
@@ -19,30 +20,33 @@ void read_data(Server& server, ServerTCPSocket::SocketInfo& connection, FS_Track
     uint8_t OPCode = message.fsTrackGetOpcode();
     std::string errorDetails;
     std::vector<FS_Track::PostFileBlocksData> data;
+    std::string node;
+    char hostname[LEN_HOSTNAME];
+    int status;
+
+
 
     switch (OPCode) {
         // Cases 0 and 1 are the same
         // Register node
         case 0:
-            puts("Received register message");
-            server.registerUpdateNode(connection.addr.sin_addr.s_addr, message.regUpdateDataGetData());
-            puts("Node registered");
-            break;
 
         // Update node
         case 1:
-            printf("Received update message with size %d\n", message.fsTrackGetSize());
-            server.registerUpdateNode(connection.addr.sin_addr.s_addr, message.regUpdateDataGetData());
-            puts("Node has been updated");
+            status = getnameinfo((struct sockaddr *)&connection.addr, sizeof(struct sockaddr_in), hostname, LEN_HOSTNAME, NULL, 0, 0);
+            if(status != 0){
+                print_error("There has been an error aquiring the host name");
+            }
+
+            node = std::string(hostname);
+
+            server.registerUpdateNode(node, message.regUpdateDataGetData());
             break;
 
         // Get Message
         case 2:
-            puts("Received get message");
             data = server.getNodesWithFile(message.fsTrackGetHash());
             FS_Track::sendPostMessage(connection, message.fsTrackGetHash(), data);
-            puts("Post message has been sent");
-            break;
 
         // Post Message
         case 3:
@@ -57,7 +61,14 @@ void read_data(Server& server, ServerTCPSocket::SocketInfo& connection, FS_Track
 
         // ByeBye Message
         case 5:
-            server.deleteNode(connection.addr.sin_addr.s_addr);
+            status = getnameinfo((struct sockaddr *)&connection.addr, sizeof(struct sockaddr_in), hostname, LEN_HOSTNAME, NULL, 0, 0);
+            if(status != 0){
+                print_error("There has been an error aquiring the host name");
+            }
+
+            node = std::string(hostname);
+
+            server.deleteNode(node);
             break;
         default:
             errorDetails = "Message has invalid OPCode";

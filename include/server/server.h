@@ -18,18 +18,18 @@ public:
 
     ~Server();
 
-    void addNewInfo(uint32_t ip, FS_Track::RegUpdateData &newNode);
+    void addNewInfo(std::string node, FS_Track::RegUpdateData &newNode);
 
     std::vector<FS_Track::PostFileBlocksData> getNodesWithFile(HASH_TYPE hash);
 
     void printMap();
 
-    void registerUpdateNode(uint32_t ip, std::vector<FS_Track::RegUpdateData> data);
+    void registerUpdateNode(std::string node, std::vector<FS_Track::RegUpdateData> data);
 
-    void deleteNode(uint32_t ip);
+    void deleteNode(std::string node);
 
 private:
-    std::unordered_map<uint64_t, std::vector<std::pair<uint32_t, bitMap>>> fileMap;
+    std::unordered_map<uint64_t, std::vector<std::pair<std::string, bitMap>>> fileMap;
     std::mutex mtx;
 };
 

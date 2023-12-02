@@ -51,7 +51,7 @@ void setPostFileBlocks(FS_Track *data) {
             blocks.emplace_back(j % 2 == 0);
         }
 
-        dados.emplace_back(ip, blocks);
+        dados.emplace_back(std::string (inet_ntoa(ip)), blocks);
     }
 
     data->postFileBlocksSetData(dados);
@@ -59,7 +59,7 @@ void setPostFileBlocks(FS_Track *data) {
 
 void readPostFileBlocks(FS_Track *data) {
     for (const auto &strct: data->postFileBlocksGetData()) {
-        std::cout << "IP: " << strct.ip.s_addr << std::endl;
+        std::cout << "IP: " << strct.hostname << std::endl;
         for (auto i: strct.block_numbers) {
             std::cout << i << std::endl;
         }
