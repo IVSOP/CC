@@ -108,6 +108,27 @@ ClientTCPSocket::ClientTCPSocket(const std::string &ipv4)
     }
 }
 
+// impossivel isto ter ficado mais manhoso
+ClientTCPSocket::ClientTCPSocket(struct sockaddr_in ipv4)
+        : clientfd(-1) {
+    if ((clientfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        print_error("Error creating socket");
+        exit(EXIT_FAILURE);
+    }
+
+    // int opt = 1;
+    // if (setsockopt(clientfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
+    //     print_error("Error setting socket options");
+    //     exit(EXIT_FAILURE);
+    // }
+
+    int status;
+    if ((status = connect(clientfd, reinterpret_cast<struct sockaddr *>(&ipv4), sizeof(&ipv4))) < 0) {
+        print_error("Connection Failed");
+        exit(EXIT_FAILURE);
+    }
+}
+
 ClientTCPSocket::~ClientTCPSocket() {
     close(clientfd);
 }

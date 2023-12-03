@@ -16,8 +16,8 @@
 #define MAX_WRR_NON_UPDATE_TRIES 3
 
 Client::Client() // por default sockets aceitam tudo
-    : socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), dispatchTable(), nodes_priority_lock(),
-	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), nameToIP()
+    : nameToIP(), socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), dispatchTable(), nodes_priority_lock(),
+	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
 {
     // register
     initUploadLoop();
@@ -27,8 +27,8 @@ Client::Client() // por default sockets aceitam tudo
 }
 
 Client::Client(char* dir) // por default sockets aceitam tudo
-	: socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
-	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), nameToIP()
+	: nameToIP(), socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
+	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
 {
     // register
     initUploadLoop();
@@ -39,8 +39,8 @@ Client::Client(char* dir) // por default sockets aceitam tudo
 }
 
 Client::Client(char* dir, const std::string &IPv4)
-	: socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
-	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), nameToIP()
+	: nameToIP(), socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
+	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
 {
     // register
     initUploadLoop();
@@ -50,9 +50,9 @@ Client::Client(char* dir, const std::string &IPv4)
     commandParser(dir);
 }
 
-Client::Client(char* dir, const std::string &svIPv4, const std::string &myIPv4)
-: socketToServer(svIPv4), udpSocket(myIPv4), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
-	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), nameToIP()
+Client::Client(char* dir, const std::string &server_name, const std::string &myIPv4)
+: nameToIP(), socketToServer(getIpFromName(server_name).addr), udpSocket(myIPv4), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
+	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
 {
 	// register
     initUploadLoop();

@@ -116,13 +116,15 @@ struct FS_Transfer_Info {
 // pode ser otimizado, ha muitas copias de memoria
 
 struct Client {
+		// cache para DNS. assumimos que nunca muda depois de ser inserido. tem de ficar aqui
+	std::unordered_map<std::string, Ip> nameToIP;
 
     using FS_Transfer_Packet_handler = void (Client::*) (const FS_Transfer_Info&); //typedef para as funções da dispatch table
 
     Client();
     Client(char* dir);
 	Client(char* dir, const std::string &IPv4); // para set do server IP
-	Client(char* dir, const std::string &svIPv4, const std::string &myIPv4); // para set do server IP e do IP da interface
+	Client(char* dir, const std::string &server_name, const std::string &myIPv4); // para set do server IP e do IP da interface
 
     ~Client();
 
@@ -214,9 +216,6 @@ struct Client {
     FS_Transfer_Info dataFinal;
     FS_Transfer_Packet dataPacket;
     BlockSendData blockSend;
-
-	// cache para DNS. assumimos que nunca muda depois de ser inserido
-	std::unordered_map<std::string, Ip> nameToIP;
 };
 
 #endif
