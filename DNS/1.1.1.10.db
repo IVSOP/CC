@@ -1,0 +1,13 @@
+$TTL 86400
+@	IN	SOA	portatil1.	root.portatil1.	(
+		2023120201
+		86400
+		7200
+		604800
+		86400 )
+
+; name servers - NS records
+@	IN	NS	ns.portatil1.
+
+; server records - A records
+@	IN	PTR	portatil1.

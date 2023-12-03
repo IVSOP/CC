@@ -1,0 +1,13 @@
+$TTL 86400
+@	IN	SOA	paris.	root.paris.	(
+		2023120201
+		86400
+		7200
+		604800
+		86400 )
+
+; name servers - NS records
+@	IN	NS	ns.paris.
+
+; server records - A records
+@	IN	PTR	paris.
