@@ -55,7 +55,6 @@ std::vector<FS_Track::PostFileBlocksData> Server::getNodesWithFile(uint64_t hash
     auto mapIter = fileMap.find(hash);
 
     std::vector<FS_Track::PostFileBlocksData> ans = std::vector<FS_Track::PostFileBlocksData>();
-    struct in_addr ip{};
 
     if(mapIter != fileMap.end()){
         for(const auto& pair: mapIter->second){

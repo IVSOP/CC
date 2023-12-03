@@ -274,9 +274,8 @@ void Client::initUploadLoop() {
 	answererThread.detach();
 }
 
-std::vector<std::pair<uint32_t, std::vector<Ip>>> Client::getBlockFiles(std::vector<FS_Track::PostFileBlocksData>& data, uint32_t* maxSize){
+std::vector<std::pair<uint32_t, std::vector<Ip>>> Client::getBlockFiles(std::vector<FS_Track::PostFileBlocksData>& data, uint32_t* maxSize, std::vector<Ip>& allNodeIps){
     uint32_t size = 0;
-
 	//obter o bloco com maior numero entre os recebidos de todos os nodos
     for(auto& nodeData : data){
         size = std::max(size, static_cast<uint32_t>(nodeData.block_numbers.size()));
@@ -291,17 +290,15 @@ std::vector<std::pair<uint32_t, std::vector<Ip>>> Client::getBlockFiles(std::vec
 
     for(auto& nodeData : data){
         size = nodeData.block_numbers.size();
-			
-		struct sockaddr_in addr;
-		addr.sin_addr = nodeData.ip;
-		addr.sin_port = htons(UDP_PORT);
-		addr.sin_family = AF_INET;
+
+		Ip nodeIp = getIpFromName(nodeData.hostname); // obter ip do nodo dado um nome com DNS
+
+		allNodeIps.push_back(nodeIp); // aproveitar o loop para inserir numa estrutura auxiliar todos os IPs obtidos
 
         for(uint32_t i = 0; i < size; i++){
             if(!nodeData.block_numbers.at(i)) continue;
 
-
-            ans.at(i).second.emplace_back(addr);
+            ans.at(i).second.push_back(nodeIp);
         }
     }
 
@@ -474,19 +471,15 @@ void Client::regNewFile(const char* dir, const char* fn, size_t size) {
 void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, std::vector<FS_Track::PostFileBlocksData>& receivedData) {
 	puts("Getting the file");
 	uint32_t maxSize = 0;
+	std::vector<Ip> allNodeIps;
 	// par <este bloco, estes nodos>
-	std::vector<std::pair<uint32_t, std::vector<Ip>>> block_nodes = getBlockFiles(receivedData, &maxSize);
+	std::vector<std::pair<uint32_t, std::vector<Ip>>> block_nodes = getBlockFiles(receivedData, &maxSize, allNodeIps);
 
 	//criar bitMap vazio para ficheiro que se fez get
 	regNewFile(dir, filename, maxSize); 
 
 	//inicializar estruturas de nodos
-	for(auto& nodeData : receivedData){
-		struct sockaddr_in addr;
-		addr.sin_addr = nodeData.ip;
-		addr.sin_port = htons(UDP_PORT);
-		addr.sin_family = AF_INET;
-		Ip nodeIp = Ip(addr);
+	for(auto& nodeIp : allNodeIps){
 
 		this->nodes_tracker.insert({nodeIp,NodesRTT()});
 		this->nodes_priority.insert({nodeIp,0});

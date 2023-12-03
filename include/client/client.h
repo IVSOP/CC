@@ -155,7 +155,7 @@ struct Client {
 
     void regDirectory(char* directory);
     void regFile(const char* dir, char* fn);
-    std::vector<std::pair<uint32_t, std::vector<Ip>>> getBlockFiles(std::vector<FS_Track::PostFileBlocksData>& data, uint32_t* maxSize);
+    std::vector<std::pair<uint32_t, std::vector<Ip>>> getBlockFiles(std::vector<FS_Track::PostFileBlocksData>& data, uint32_t* maxSize, std::vector<Ip>& allNodeIps);
 
     /**
      * Select node from who we should request a block through a priority
