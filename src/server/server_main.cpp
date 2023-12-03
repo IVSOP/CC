@@ -51,6 +51,7 @@ void read_data(Server& server, ServerTCPSocket::SocketInfo& connection, FS_Track
             printf("Received get message from node %s\n", inet_ntoa(connection.addr));
             data = server.getNodesWithFile(message.fsTrackGetHash());
             FS_Track::sendPostMessage(connection, message.fsTrackGetHash(), data);
+			break;
 
         // Post Message
         case 3:
