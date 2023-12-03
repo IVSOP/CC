@@ -40,11 +40,15 @@ void read_data(Server& server, ServerTCPSocket::SocketInfo& connection, FS_Track
 
             node = std::string(hostname);
 
+            printf("Received register/update message from node %s\n", hostname);
+
             server.registerUpdateNode(node, message.regUpdateDataGetData());
             break;
 
         // Get Message
         case 2:
+
+            printf("Received get message from node %s\n", inet_ntoa(connection.addr));
             data = server.getNodesWithFile(message.fsTrackGetHash());
             FS_Track::sendPostMessage(connection, message.fsTrackGetHash(), data);
 
@@ -67,6 +71,8 @@ void read_data(Server& server, ServerTCPSocket::SocketInfo& connection, FS_Track
             }
 
             node = std::string(hostname);
+
+            printf("Received bye bye message from node %s\n", hostname);
 
             server.deleteNode(node);
             break;
