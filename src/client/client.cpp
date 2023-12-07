@@ -105,7 +105,13 @@ void Client::readLoop() {
 		udpSocket.receiveData(&info.packet, FS_TRANSFER_PACKET_SIZE, &info.addr);
 		inputBuffer.push(info);
 
-		printf("packet received from node %s\n", inet_ntoa(info.addr.sin_addr));
+		printf("packet received from node %s\nData received: ", inet_ntoa(info.addr.sin_addr));
+
+        for(uint32_t j = 0; j < info.packet.getSize(); j++){
+            printf("%d ", ((uint32_t*)info.packet.getData())[j]);
+        }
+
+        puts("");
 	}
 }
 
@@ -726,6 +732,13 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 
         for(uint32_t j = 0; j < i->second.size(); j++){
             printf("%d ", arr[j]);
+        }
+
+        puts("");
+        printf("Node_Blocks data: ");
+
+        for(uint32_t j = 0; j < i->second.size(); j++){
+            printf("%d ", i->second.at(j));
         }
 
         puts("");
