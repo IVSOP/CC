@@ -175,7 +175,7 @@ void Client::checkTimeoutNodes(std::unordered_map<Ip, std::vector<uint32_t>>& re
 			// se bloco não tiver chegado no tempo definido // excusa de haver locks, se ler errado porque chega no mesmo milisegundo o bloco, conta como timeout na mesma
             updateNodePriority(i->first, NODE_VALUE_TIMEOUT);
             printf("Timeout occured on node: %s, blockRequest: %d\n", inet_ntoa(i->first.addr.sin_addr), block);
-
+			printf("New node %s priority: %d\n", inet_ntoa(i->first.addr.sin_addr), getNodePriority(i->first));
             std::unique_lock<std::mutex> lock(this->nodes_tracker_lock);
             nodes_tracker[i->first].receive2(std::chrono::duration_cast<std::chrono::nanoseconds>(timeoutTime));
             this->nodes_tracker_lock.unlock();
