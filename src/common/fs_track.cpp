@@ -262,7 +262,7 @@ void FS_Track::postFileBlocksSetData(const std::vector<FS_Track::PostFileBlocksD
 
         bitmap_serialize(serializedData, node_blocks.block_numbers, blocks_size, significant_bits);
 
-        totalBytes += (9 + blocks_len);
+        totalBytes += (9 + node_blocks.hostname.size() + blocks_len);
     }
 
     // Update FS_Track
