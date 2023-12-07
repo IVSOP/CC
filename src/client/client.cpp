@@ -118,7 +118,7 @@ void Client::writeLoop() {
 		info = outputBuffer.pop();
 
         udpSocket.sendData(&info.packet, FS_TRANSFER_PACKET_SIZE, &info.addr);
-		puts("packet sent");
+		printf("packet sent to node %s\n", inet_ntoa(info.addr.sin_addr));
     }
 }
 
