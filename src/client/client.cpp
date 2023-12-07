@@ -349,6 +349,12 @@ void Client::commandParser(const char * dir) {
                 continue;
             }
 
+            puts("Data received:");
+
+            for(const auto& d : receivedData){
+                std::cout << d.hostname << " with " << d.block_numbers.size() << " blocks" << std::endl;
+            }
+
 			fetchFile(dir,filename.c_str(), hash, receivedData);
         } else {
             printf("Invalid command\n");
@@ -475,12 +481,23 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 	// par <este bloco, estes nodos>
 	std::vector<std::pair<uint32_t, std::vector<Ip>>> block_nodes = getBlockFiles(receivedData, &maxSize, allNodeIps);
 
+    puts("Block nodes data:");
+
+    for(const auto& d : block_nodes){
+        std::cout << "Block number: " << d.first << " can be received from nodes: ";
+
+        for(const auto& i : d.second){
+            std::cout << inet_ntoa(i.addr.sin_addr) << " ";
+        }
+
+        std::cout << std::endl;
+    }
+
 	//criar bitMap vazio para ficheiro que se fez get
 	regNewFile(dir, filename, maxSize); 
 
 	//inicializar estruturas de nodos
 	for(auto& nodeIp : allNodeIps){
-
 		this->nodes_tracker.insert({nodeIp,NodesRTT()});
 		this->nodes_priority.insert({nodeIp,0});
 	}
