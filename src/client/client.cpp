@@ -715,6 +715,8 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
     uint32_t* arr = new uint32_t[maxSize];
 
     for (auto i = nodes_blocks.begin(); i != nodes_blocks.end(); i++){
+        if(i->second.size() == 0) continue;
+
 		std::unique_lock<std::mutex> lock(nodes_tracker_lock);
 
         std::copy(i->second.begin(), i->second.end(), arr);
@@ -754,16 +756,16 @@ Ip Client::selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<I
     uint32_t size = available_nodes.size();
     Ip ans = available_nodes.at(0);
 
-    if(nodes_blocks.find(ans) == nodes_blocks.end()) nodes_blocks.insert({ans, std::vector<uint32_t>()});
+    if(nodes_blocks.find(ans) == nodes_blocks.end()) nodes_blocks.insert({ans, std::vector<uint32_t>(0)});
 
     for (uint32_t i = 1; i < size; i++) {
         Ip cur = available_nodes.at(i);
 
-        if(nodes_blocks.find(cur) == nodes_blocks.end()) nodes_blocks.insert({cur, std::vector<uint32_t>()});
+        if(nodes_blocks.find(cur) == nodes_blocks.end()) nodes_blocks.insert({cur, std::vector<uint32_t>(0)});
 
         if(nodes_blocks.at(cur).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) continue;
 
-        if(nodes_blocks.at(ans).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) cur = ans;
+        if(nodes_blocks.at(ans).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) ans = cur;
 
         else if(this->nodes_priority.at(cur) > this->nodes_priority.at(ans)) ans = cur;
     }
