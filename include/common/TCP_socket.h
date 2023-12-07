@@ -41,7 +41,7 @@ struct ClientTCPSocket {
     ClientTCPSocket() = delete;
 
     ClientTCPSocket(const std::string &ipv4);
-	ClientTCPSocket(struct sockaddr_in ipv4);
+	ClientTCPSocket(struct sockaddr_in *ipv4);
 
     ~ClientTCPSocket();
 

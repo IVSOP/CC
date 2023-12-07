@@ -51,7 +51,7 @@ Client::Client(char* dir, const std::string &IPv4)
 }
 
 Client::Client(char* dir, const std::string &server_name, const std::string &myIPv4)
-: nameToIP(), socketToServer(getIpFromName(server_name).addr), udpSocket(myIPv4), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
+: nameToIP(), socketToServer(&(getIpFromName(server_name)->addr)), udpSocket(myIPv4), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
 	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
 {
 	// register
@@ -291,7 +291,7 @@ std::vector<std::pair<uint32_t, std::vector<Ip>>> Client::getBlockFiles(std::vec
     for(auto& nodeData : data){
         size = nodeData.block_numbers.size();
 
-		Ip nodeIp = getIpFromName(nodeData.hostname); // obter ip do nodo dado um nome com DNS
+		Ip nodeIp = *getIpFromName(nodeData.hostname); // obter ip do nodo dado um nome com DNS
 
 		allNodeIps.push_back(nodeIp); // aproveitar o loop para inserir numa estrutura auxiliar todos os IPs obtidos
 
@@ -739,7 +739,8 @@ Ip Client::selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<I
 }
 
 // gethostbyname is an obsolete function according to man page
-Ip Client::getIpFromName(const std::string name) {
+Ip *Client::getIpFromName(const std::string name) {
+	printf("looking up %s\n", name.c_str());
 	// nao me apeteceu usar find() e iterators ate me deu umas dores so de pensar
 	if (nameToIP.contains(name) == false) {
 		// DNS lookup
@@ -767,10 +768,12 @@ Ip Client::getIpFromName(const std::string name) {
 				printf("Name %s resolved to %s\n", hostname, ip_address);
 				ip = Ip(*ipv4_addr);
 				nameToIP[name] = ip;
+				printf("found %s\n", inet_ntoa(ipv4_addr->sin_addr));
 			}
 
 			freeaddrinfo(result);
 	}
-	// cursed se der mais do que 1 nome
-	return nameToIP[name];
+	// cursed se der mais do que 1 nome ou !!!!!!!!!!!!!!!!!!!!!
+	// printf("returning %s\n", inet_ntoa(nameToIP[name].addr.sin_addr));
+	return &nameToIP[name];
 }
