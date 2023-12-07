@@ -49,7 +49,7 @@ void read_data(Server &server, ServerTCPSocket::SocketInfo &connection, FS_Track
     // Get Message
     case 2:
 
-        printf("Received get message from node %s\n", inet_ntoa(connection.addr));
+        printf("Received get message from node %s\n", inet_ntoa(connection.addr.sin_addr));
         data = server.getNodesWithFile(message.fsTrackGetHash());
         FS_Track::sendPostMessage(connection, message.fsTrackGetHash(), data);
         break;

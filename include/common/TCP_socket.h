@@ -23,7 +23,7 @@ struct ServerTCPSocket {
     // devolvida depois de um accept
     struct SocketInfo {
         int sockfd = -1;
-        in_addr addr;
+        struct sockaddr_in addr;
 
         ssize_t receiveData(void *buf, size_t len) const;
 

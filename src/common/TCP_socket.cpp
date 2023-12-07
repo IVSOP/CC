@@ -47,7 +47,7 @@ void ServerTCPSocket::socketListen() const {
 // NOT responsibility of this class to close new socket
 ServerTCPSocket::SocketInfo ServerTCPSocket::acceptClient() const {
     SocketInfo socketInfo;
-    socklen_t addrlen = sizeof(struct sockaddr_in);
+    socklen_t addrlen = sizeof(socketInfo.addr);
     int clientSocket = accept(serverfd, reinterpret_cast<struct sockaddr *>(&socketInfo.addr), &addrlen);
     if (clientSocket < 0) {
         print_error("Error accepting connection");
