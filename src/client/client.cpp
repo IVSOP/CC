@@ -696,6 +696,8 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 
         Ip node = selectBestNode(i->second, nodes_blocks);
 
+        printf("Selected node with ip %s\n", inet_ntoa(node.addr.sin_addr));
+
 		if(nodes_blocks.at(node).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) continue;
 
         if (nodes_blocks.find(node) == nodes_blocks.end()) {
@@ -732,13 +734,6 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 
         for(uint32_t j = 0; j < i->second.size(); j++){
             printf("%d ", arr[j]);
-        }
-
-        puts("");
-        printf("Node_Blocks data: ");
-
-        for(uint32_t j = 0; j < i->second.size(); j++){
-            printf("%d ", i->second.at(j));
         }
 
         puts("");
