@@ -54,6 +54,12 @@ void read_data(Server &server, ServerTCPSocket::SocketInfo &connection, FS_Track
         printf("Received get message from node %s\n", inet_ntoa(connection.addr.sin_addr));
         data = server.getNodesWithFile(message.fsTrackGetHash());
         FS_Track::sendPostMessage(connection, message.fsTrackGetHash(), data);
+        puts("Post message sent with data:");
+
+        for(const auto& d: data){
+            std::cout << d.hostname << " with " << d.block_numbers.size() << " blocks" << std::endl;
+        }
+
         break;
 
     // Post Message
