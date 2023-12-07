@@ -1,14 +1,14 @@
 $TTL 86400
 @	IN	SOA	servidor1.	root.servidor1.	(
-		2023120201
-		86400
-		7200
-		604800
-		86400 )
+			2023120201
+			86400
+			7200
+			604800
+			86400 )
 
 ; name servers - NS records
 @	IN	NS	ns.servidor1.
 
 ; server records - A records
-@	IN 	A	10.4.4.1
+@	IN	A	10.4.4.1
 ns	IN	A	10.4.4.1
