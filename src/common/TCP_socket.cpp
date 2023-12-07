@@ -108,13 +108,16 @@ ClientTCPSocket::ClientTCPSocket(const std::string &ipv4)
     }
 }
 
-// impossivel isto ter ficado mais manhoso
+// impossivel isto ter ficado mais manhoso ate me esqueci do this->addr
 ClientTCPSocket::ClientTCPSocket(struct sockaddr_in ipv4)
         : clientfd(-1) {
     if ((clientfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         print_error("Error creating socket");
         exit(EXIT_FAILURE);
     }
+
+	ipv4.sin_family = AF_INET;
+    ipv4.sin_port = htons(TCP_PORT);
 
     // int opt = 1;
     // if (setsockopt(clientfd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
@@ -123,7 +126,7 @@ ClientTCPSocket::ClientTCPSocket(struct sockaddr_in ipv4)
     // }
 
     int status;
-    if ((status = connect(clientfd, reinterpret_cast<struct sockaddr *>(&ipv4), sizeof(&ipv4))) < 0) {
+    if ((status = connect(clientfd, reinterpret_cast<struct sockaddr *>(&ipv4), sizeof(struct sockaddr_in))) < 0) {
         print_error("Connection Failed");
         exit(EXIT_FAILURE);
     }
