@@ -784,8 +784,13 @@ Ip *Client::getIpFromName(const std::string name) {
 				inet_ntop(AF_INET, &(ipv4_addr->sin_addr), ip_address, INET_ADDRSTRLEN);
 				printf("Name %s resolved to %s\n", hostname, ip_address);
 				ip = Ip(*ipv4_addr);
-				nameToIP[name] = ip;
 				printf("found %s\n", inet_ntoa(ipv4_addr->sin_addr));
+
+				// porta UDP fica aqui
+				ip.addr.sin_family = AF_INET;
+				ip.addr.sin_port = htons(UDP_PORT);
+
+				nameToIP[name] = ip;
 			}
 
 			freeaddrinfo(result);
