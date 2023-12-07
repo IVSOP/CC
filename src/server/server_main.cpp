@@ -46,6 +46,8 @@ void read_data(Server &server, ServerTCPSocket::SocketInfo &connection, FS_Track
         printf("Received register/update message from node %s\n", hostname);
 
         server.registerUpdateNode(node, message.regUpdateDataGetData());
+
+        puts("Server updated successfully");
         break;
 
     // Get Message
