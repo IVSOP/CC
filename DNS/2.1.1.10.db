@@ -7,7 +7,7 @@ $TTL 86400
 		86400 )
 
 ; name servers - NS records
-@	IN	NS	ns.servidor1.
+@	IN	NS	ns.portatil2.
 
 ; server records - A records
-@	IN	PTR	servidor1.
+@	IN	PTR	portatil2.
