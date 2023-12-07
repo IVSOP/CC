@@ -33,10 +33,12 @@ void read_data(Server &server, ServerTCPSocket::SocketInfo &connection, FS_Track
 
     // Update node
     case 1:
-        status = getnameinfo((struct sockaddr *)&connection.addr, sizeof(struct sockaddr_in), hostname, LEN_HOSTNAME, NULL, 0, 0);
+        printf("Received register/update message from node %s\n", inet_ntoa(connection.addr.sin_addr));
+        status = getnameinfo(reinterpret_cast<const sockaddr *>(&connection.addr), sizeof(connection.addr), hostname, LEN_HOSTNAME, NULL, 0, 0);
+        printf("Resolved node name to %s\n", hostname);
         if (status != 0)
         {
-            print_error("There has been an error aquiring the host name");
+            print_error("There has been an error acquiring the host name");
         }
 
         node = std::string(hostname);
