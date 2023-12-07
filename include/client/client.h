@@ -183,7 +183,7 @@ struct Client {
     void printFull_nodes_priority();
 
 	// gets either from cache or DNS
-	Ip getIpFromName(const std::string name);
+	Ip *getIpFromName(const std::string name);
 
     ClientTCPSocket socketToServer;
     NodeUDPSocket udpSocket; // usamos apenas 1 socket para tudo
