@@ -103,5 +103,7 @@ std::string Server::getHostName(ServerTCPSocket::SocketInfo &connection) {
 
     node = std::string(hostname);
 
+    this->hostnames.emplace(ip, node);
+
     return node;
 }
