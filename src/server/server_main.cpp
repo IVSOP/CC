@@ -22,8 +22,6 @@ void read_data(Server &server, ServerTCPSocket::SocketInfo &connection, FS_Track
     std::string errorDetails;
     std::vector<FS_Track::PostFileBlocksData> data;
     std::string node;
-    char hostname[LEN_HOSTNAME];
-    int status;
 
     switch (OPCode)
     {
@@ -33,17 +31,9 @@ void read_data(Server &server, ServerTCPSocket::SocketInfo &connection, FS_Track
 
     // Update node
     case 1:
-        printf("Received register/update message from node %s\n", inet_ntoa(connection.addr.sin_addr));
-        status = getnameinfo(reinterpret_cast<const sockaddr *>(&connection.addr), sizeof(connection.addr), hostname, LEN_HOSTNAME, NULL, 0, 0);
-        printf("Resolved node name to %s\n", hostname);
-        if (status != 0)
-        {
-            print_error("There has been an error acquiring the host name");
-        }
+        node = server.getHostName(connection);
 
-        node = std::string(hostname);
-
-        printf("Received register/update message from node %s\n", hostname);
+        printf("Received register/update message from node %s\n", node.c_str());
 
         server.registerUpdateNode(node, message.regUpdateDataGetData());
 
@@ -77,15 +67,9 @@ void read_data(Server &server, ServerTCPSocket::SocketInfo &connection, FS_Track
 
     // ByeBye Message
     case 5:
-        status = getnameinfo((struct sockaddr *)&connection.addr, sizeof(struct sockaddr_in), hostname, LEN_HOSTNAME, NULL, 0, 0);
-        if (status != 0)
-        {
-            print_error("There has been an error aquiring the host name");
-        }
+        node = server.getHostName(connection);
 
-        node = std::string(hostname);
-
-        printf("Received bye bye message from node %s\n", hostname);
+        printf("Received bye bye message from node %s\n", node.c_str());
 
         server.deleteNode(node);
         break;

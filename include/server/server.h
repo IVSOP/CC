@@ -28,8 +28,11 @@ public:
 
     void deleteNode(std::string node);
 
+    std::string getHostName(ServerTCPSocket::SocketInfo &connection);
+
 private:
     std::unordered_map<uint64_t, std::vector<std::pair<std::string, bitMap>>> fileMap;
+    std::unordered_map<uint32_t, std::string> hostnames;
     std::mutex mtx;
 };
 
