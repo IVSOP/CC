@@ -161,14 +161,14 @@ void Client::rightChecksum(const FS_Transfer_Info& info, double scaleFactor) {
     }
 
     if(opcode == 1) {
-		uint64_t timestamp = info.packet.timestamp;
 		// prioridade do nodo vai ser maior se tiverem chegado em menos tempo os pacotes, em cada ronda de pedidos
-		printf("From node %s | SUCCESS: timestamp: %lu, update value: %d\n", inet_ntoa(info.addr.sin_addr), timestamp, (int32_t) (NODE_VALUE_SUCCESS * 1/timestamp));
+		printf("From node %s | SUCCESS: scaleFactor: %f, updated value wihtout cast: %f, with cast: %d \n", 
+			inet_ntoa(info.addr.sin_addr), scaleFactor, NODE_VALUE_SUCCESS * scaleFactor, static_cast<int32_t> (NODE_VALUE_SUCCESS * scaleFactor));
+
 		updateNodePriority(Ip(info.addr), static_cast<int32_t> (NODE_VALUE_SUCCESS * scaleFactor));
 	}
 
     (this->*dispatchTable[opcode])(info); // assign data to function with respective opcode
-
 }
 
 // verificar se blocos pedidos deram timeout
