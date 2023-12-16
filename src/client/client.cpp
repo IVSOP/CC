@@ -687,8 +687,8 @@ void Client::updateFileNodesServer(uint64_t fileHash) {
 }
 
 //compara número de nodos (aka vector<Ip>.size) que podem fornecer um bloco (uint32_t)
-int cmpBlocksAvailability(std::pair<uint32_t , std::vector<Ip>>& a, std::pair<uint32_t , std::vector<Ip>>& b){
-	return a.second.size() - b.second.size();
+bool cmpBlocksAvailability(std::pair<uint32_t , std::vector<Ip>>& a, std::pair<uint32_t , std::vector<Ip>>& b){
+	return a.second.size() < b.second.size();
 }
 
 //args: hash do ficheiro, pares(bloco, nodos que o possuem)
