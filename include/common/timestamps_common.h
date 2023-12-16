@@ -55,7 +55,6 @@ template <class Duration>
             double base = 50.0;
 
             double scaledDuration = std::chrono::duration_cast<std::chrono::duration<double>>(timeDiff).count();
-            printf("scaledDuration in timestamps_common: %d", scaledDuration);
             double scaledValue = scaleFactor / std::log2(scaledDuration * base + 1);
 
             return scaledValue;

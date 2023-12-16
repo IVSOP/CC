@@ -463,7 +463,13 @@ void Client::regFile(const char* dir, char* fn) {
 //registar ficheiro novo que se faz GET nas estruturas de ficheiros do cliente
 void Client::regNewFile(const char* dir, const char* fn, size_t size) {
 	char filePath[FILENAME_BUFFER_SIZE];
-    snprintf(filePath, FILENAME_BUFFER_SIZE, "%s%s", dir, fn);
+	std::string directory = std::string(dir);
+
+    if(directory.at(directory.size()-1) != '/'){
+        directory.append("/");
+    }
+	
+    snprintf(filePath, FILENAME_BUFFER_SIZE, "%s%s", directory, fn);
 	printf("file: %s\n",filePath);
 
 	FILE* file = fopen(filePath, "wb+"); // se ficheiro já existia, reescreve tudo, senão cria novo
