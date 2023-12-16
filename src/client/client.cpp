@@ -469,7 +469,7 @@ void Client::regNewFile(const char* dir, const char* fn, size_t size) {
         directory.append("/");
     }
 	
-    snprintf(filePath, FILENAME_BUFFER_SIZE, "%s%s", directory, fn);
+    snprintf(filePath, FILENAME_BUFFER_SIZE, "%s%s", directory.c_str(), fn);
 	printf("file: %s\n",filePath);
 
 	FILE* file = fopen(filePath, "wb+"); // se ficheiro já existia, reescreve tudo, senão cria novo
