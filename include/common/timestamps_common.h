@@ -4,6 +4,7 @@
 #include <chrono>
 #include <iostream>
 #include <iomanip>
+#include <cmath>
 
 #define NODES_RTT_TRACK_SIZE 16
 #define BASE_TIMEOUT_TIME std::chrono::milliseconds(5); // actual timeout time will be 5* this
@@ -50,9 +51,16 @@ template <class Duration>
 
         //give timeframe, convert into a factor to be used on node priority assignments
         static double convertToPriorityFactor(const sys_nano_diff& timeDiff) {
+            double scaleFactor = 10.0;
+
             double scaledDuration = std::chrono::duration_cast<std::chrono::duration<double>>(timeDiff).count();
-            double scaleFactor = 1.0 / scaledDuration;
-            return scaleFactor;
+            double scaledValue = std::log(scaledDuration + 1) * scaleFactor;
+
+            if (scaledValue < 0) {
+                scaledValue = std::max(0.0,scaledValue);
+                printf("Scaled value was below 0!\n");
+            }
+            return scaledValue;
         }
 
         //receives RTT in seconds
