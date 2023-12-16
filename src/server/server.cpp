@@ -3,11 +3,11 @@
 
 Server::Server() : mtx(){
     fileMap = std::unordered_map<uint64_t, std::vector<std::pair<std::string, bitMap > > >();
-};
+}
 
 Server::~Server() {
     fileMap.clear();
-};
+}
 
 void Server::addNewInfo(std::string node, FS_Track::RegUpdateData &newNode) {
     std::unique_lock<std::mutex> lock = std::unique_lock<std::mutex>(mtx);

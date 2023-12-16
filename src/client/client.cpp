@@ -105,13 +105,13 @@ void Client::readLoop() {
 		udpSocket.receiveData(&info.packet, FS_TRANSFER_PACKET_SIZE, &info.addr);
 		inputBuffer.push(info);
 
-		printf("packet received from node %s\nData received: ", inet_ntoa(info.addr.sin_addr));
+		// printf("packet received from node %s\nData received: ", inet_ntoa(info.addr.sin_addr));
 
-        for(uint32_t j = 0; j < info.packet.getSize(); j++){
-            printf("%d ", ((uint32_t*)info.packet.getData())[j]);
-        }
+        // for(uint32_t j = 0; j < info.packet.getSize(); j++){
+        //     printf("%d ", ((uint32_t*)info.packet.getData())[j]);
+        // }
 
-        puts("");
+        // puts("");
 	}
 }
 
@@ -144,6 +144,8 @@ void Client::answerRequestsLoop() {
 // pode acontecer tanto quando recebe uma request, ou uma reply de outro nodo!!
 // n processa o pacote, porque tem dados corrompidos
 void Client::wrongChecksum(const FS_Transfer_Info&info) {
+
+	printf("From node %s | WRONG: update value: %d\n", inet_ntoa(info.addr.sin_addr), NODE_VALUE_WRONG);
 	updateNodePriority(Ip(info.addr), NODE_VALUE_WRONG);
 }
 
@@ -160,6 +162,7 @@ void Client::rightChecksum(const FS_Transfer_Info& info) {
     if(opcode == 1) {
 		uint64_t timestamp = info.packet.timestamp;
 		// prioridade do nodo vai ser maior se tiverem chegado em menos tempo os pacotes, em cada ronda de pedidos
+		printf("From node %s | SUCCESS: timestamp: %u, update value: %d\n", inet_ntoa(info.addr.sin_addr), timestamp, (int32_t) (NODE_VALUE_SUCCESS * 1/timestamp));
 		updateNodePriority(Ip(info.addr), (int32_t) (NODE_VALUE_SUCCESS * 1/timestamp));
 	}
 
@@ -177,9 +180,8 @@ void Client::checkTimeoutNodes(std::unordered_map<Ip, std::vector<uint32_t>>& re
             if (this->blocksPerFile[fileHash][block]) continue;
 
 			// se bloco não tiver chegado no tempo definido // excusa de haver locks, se ler errado porque chega no mesmo milisegundo o bloco, conta como timeout na mesma
+            printf("From node: %s | TIMEOUT: On blockRequest: %d\n", inet_ntoa(i->first.addr.sin_addr), block);
             updateNodePriority(i->first, NODE_VALUE_TIMEOUT);
-            printf("Timeout occured on node: %s, blockRequest: %d\n", inet_ntoa(i->first.addr.sin_addr), block);
-			printf("New node %s priority: %d\n", inet_ntoa(i->first.addr.sin_addr), getNodePriority(i->first));
             std::unique_lock<std::mutex> lock(this->nodes_tracker_lock);
             nodes_tracker[i->first].receive2(std::chrono::duration_cast<std::chrono::nanoseconds>(timeoutTime));
             this->nodes_tracker_lock.unlock();
@@ -200,6 +202,7 @@ uint32_t Client::getNodePriority(const Ip& nodeIp) {
 
 //incrementa valor à prioridade de nodo
 void Client::updateNodePriority(const Ip& nodeIp, int32_t value) {
+
 	std::unique_lock<std::mutex> lock(this->nodes_priority_lock);
 	int32_t newPrio = this->nodes_priority[nodeIp] + value;
 	// limit priority range, to make node priority more suscetible to changes
@@ -207,13 +210,16 @@ void Client::updateNodePriority(const Ip& nodeIp, int32_t value) {
 	else if (newPrio < MIN_PRIO_VALUE) newPrio = MIN_PRIO_VALUE;
 
 	this->nodes_priority[nodeIp] = newPrio;
+
 	lock.unlock();
+
+	printf("New node %s priority: %d\n", inet_ntoa(nodeIp.addr.sin_addr), getNodePriority(nodeIp));
 }
 
 //assume-se que UDP é zoom fast e não há delays a espera em buffers
 // push packet to output buffer
 void Client::sendInfo(FS_Transfer_Info &info) {
-	
+
 	outputBuffer.push(info);
 }
 

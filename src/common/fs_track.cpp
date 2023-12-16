@@ -48,7 +48,7 @@ uint64_t FS_Track::RegUpdateData::getFileHash() {
 
 bitMap FS_Track::RegUpdateData::getBlockNumbers() {
     return bitMap(this->block_numbers);
-};
+}
 
 FS_Track::PostFileBlocksData::PostFileBlocksData(std::string hostname, bitMap block_numbers) {
     this->hostname = std::string(hostname);
