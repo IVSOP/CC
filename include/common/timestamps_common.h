@@ -51,10 +51,11 @@ template <class Duration>
 
         //give timeframe, convert into a factor to be used on node priority assignments
         static double convertToPriorityFactor(const sys_nano_diff& timeDiff) {
-            double scaleFactor = 10.0;
-
+            double scaleFactor = 0.1;
+            double base = 10.0;
+            
             double scaledDuration = std::chrono::duration_cast<std::chrono::duration<double>>(timeDiff).count();
-            double scaledValue = std::log(scaledDuration + 1) * scaleFactor;
+            double scaledValue = scaleFactor / std::log(scaledDuration * base + 1);
 
             if (scaledValue < 0) {
                 scaledValue = std::max(0.0,scaledValue);

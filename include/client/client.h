@@ -15,6 +15,7 @@
 #include "socket_common.h"
 #include "checksum.h"
 
+//parâmetros modificáveis
 #define CLIENT_INPUT_BUFFER_SIZE 10
 #define CLIENT_OUTPUT_BUFFER_SIZE 10
 #define MAX_BLOCKS_REQUESTS_PER_NODE 200
@@ -23,11 +24,15 @@
 #define NODE_VALUE_SUCCESS 1
 #define NODE_VALUE_WRONG -2
 #define NODE_VALUE_TIMEOUT -5
+
+// ---------
+
+
 #define MAX_NODE_PRIORITY MAX_PRIO_VALUE
 #define MIN_NODE_PRIORITY MIN_PRIO_VALUE
 
 constexpr int32_t MIN_PRIO_VALUE = NODE_VALUE_TIMEOUT * 5;
-constexpr int32_t MAX_PRIO_VALUE = NODE_VALUE_SUCCESS * 20;
+constexpr int32_t MAX_PRIO_VALUE = NODE_VALUE_SUCCESS * 50;
 
 //hash function for unordered_map pair structure
 struct KeyHash {

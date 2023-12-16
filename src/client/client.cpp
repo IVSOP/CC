@@ -236,6 +236,9 @@ double Client::updateNodeResponseTime(const FS_Transfer_Info& info, sys_nanoseco
        		insert_regRTT(nodeIp,timeDiff);
 		}
 	}
+	printf("From node: %s, duration: ", inet_ntoa(info.addr.sin_addr));
+	NodesRTT::printTimeDiff(timeDiff);
+
 	double timeScaleFactor = NodesRTT::convertToPriorityFactor(timeDiff);
 	return timeScaleFactor;
 }
