@@ -131,12 +131,13 @@ void Client::writeLoop() {
 // loop trying to answer a request
 void Client::answerRequestsLoop() {
 	FS_Transfer_Info info;
+	double scaleFactor;
 	while (true) {
 		info = inputBuffer.pop();
 		sys_nanoseconds timeArrived = std::chrono::system_clock::now();
-		updateNodeResponseTime(info, timeArrived); // se vier pacote com erro, contabilizo na mesma para RTT, independemente se está correto ou não
+		scaleFactor = updateNodeResponseTime(info, timeArrived); // se vier pacote com erro, contabilizo na mesma para RTT, independemente se está correto ou não
 
-        !info.packet.checkErrors() ? wrongChecksum(info) : rightChecksum(info); // se houver erro nao faz sentido estar a ler o opcode, check tem de ser feito aqui
+        !info.packet.checkErrors() ? wrongChecksum(info) : rightChecksum(info, scaleFactor); // se houver erro nao faz sentido estar a ler o opcode, check tem de ser feito aqui
 	}
 }
 
@@ -151,7 +152,7 @@ void Client::wrongChecksum(const FS_Transfer_Info&info) {
 
 //se checksum correr bem, processa pacote
 // só se pacote for response, aumenta prioridade do nodo
-void Client::rightChecksum(const FS_Transfer_Info& info) {
+void Client::rightChecksum(const FS_Transfer_Info& info, double scaleFactor) {
 	uint8_t opcode = info.packet.getOpcode();
 
     if(opcode > 1) {
@@ -162,8 +163,8 @@ void Client::rightChecksum(const FS_Transfer_Info& info) {
     if(opcode == 1) {
 		uint64_t timestamp = info.packet.timestamp;
 		// prioridade do nodo vai ser maior se tiverem chegado em menos tempo os pacotes, em cada ronda de pedidos
-		printf("From node %s | SUCCESS: timestamp: %u, update value: %d\n", inet_ntoa(info.addr.sin_addr), timestamp, (int32_t) (NODE_VALUE_SUCCESS * 1/timestamp));
-		updateNodePriority(Ip(info.addr), (int32_t) (NODE_VALUE_SUCCESS * 1/timestamp));
+		printf("From node %s | SUCCESS: timestamp: %lu, update value: %d\n", inet_ntoa(info.addr.sin_addr), timestamp, (int32_t) (NODE_VALUE_SUCCESS * 1/timestamp));
+		updateNodePriority(Ip(info.addr), static_cast<int32_t> (NODE_VALUE_SUCCESS * scaleFactor));
 	}
 
     (this->*dispatchTable[opcode])(info); // assign data to function with respective opcode
@@ -224,31 +225,26 @@ void Client::sendInfo(FS_Transfer_Info &info) {
 }
 
 //registar RTT aquando da chegada de pacote pedido
-void Client::updateNodeResponseTime(const FS_Transfer_Info& info, sys_nanoseconds timeArrived) {
+double Client::updateNodeResponseTime(const FS_Transfer_Info& info, sys_nanoseconds timeArrived) {
 	sys_nanoseconds timeSent = sys_nanoseconds(std::chrono::nanoseconds(info.packet.timestamp));
-
+	sys_nano_diff timeDiff = timeArrived - timeSent;
+	
 	if (info.packet.getOpcode() == 1) { // se pacote recebido for dados de bloco pedido
 		Ip nodeIp = Ip(info.addr);
 
 		if (!this->blocksPerFile[info.packet.id][info.packet.data.blockData.blockID]) { // se for a primeira vez que bloco chega, atualiza RTT. Se for bloco duplicado pode deturpar RTT (acho?), por isso ignora-se
-       		insert_regRTT(nodeIp,timeSent,timeArrived);
+       		insert_regRTT(nodeIp,timeDiff);
 		}
-
-		/*if (found) {// se registo de bloco recebido ainda existe, aka não estamos a receber dados de bloco duplicado
-			//printf("Received packet:");
-			//printTimePoint(timeSent);
-			insert_regRTT(nodeIp,timeSent,timeArrived); // atualizar lista de RTT do nodo com novo RTT
-			//double nodeRTT = this->nodes_tracker[nodeIp].RTT();
-			//std::cout << "currentRTT in seconds: " << nodeRTT << std::endl;
-		}*/
 	}
+	double timeScaleFactor = NodesRTT::convertToPriorityFactor(timeDiff);
+	return timeScaleFactor;
 }
 
 
 //insere novo valor em nodes_tracker
-void Client::insert_regRTT(const Ip& nodeIp, const sys_nanoseconds& timeSent, const sys_nanoseconds& timeReceived) {
+void Client::insert_regRTT(const Ip& nodeIp, const sys_nano_diff& timeDiff) {
 	std::unique_lock<std::mutex> lock(this->nodes_tracker_lock);
-	nodes_tracker[nodeIp].receive(timeSent,timeReceived);
+	nodes_tracker[nodeIp].receive2(timeDiff);
 	this->nodes_tracker_lock.unlock();
 }
 

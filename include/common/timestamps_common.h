@@ -32,21 +32,27 @@ template <class Duration>
             if (size < NODES_RTT_TRACK_SIZE) size++; //para saber quais posições têm dados a sério
         }
 
-        void receive2(sys_nano_diff timeDiff) {
+        void receive2(const sys_nano_diff& timeDiff) {
             this->arr[curr] = timeDiff;
             curr = (curr + 1) % NODES_RTT_TRACK_SIZE;
             if (size < NODES_RTT_TRACK_SIZE) size++;
         }
         
         double RTT(){
-            sys_nano_diff total(0); // se ainda n tiver pacotes vai dizer RTT 0 é suposto???
+            sys_nano_diff total(0); // se ainda n tiver pacotes vai dizer RTT 0
             for(uint32_t i = 0; i < size; i++){
                 total += arr[i];
             }
             if (size > 0) total = total / size;
             else total = BASE_TIMEOUT_TIME;
-            //converti em double para manter a estrutura que já estava, se for preciso mudar?
             return std::chrono::duration_cast<std::chrono::duration<double>>(total).count(); 
+        }
+
+        //give timeframe, convert into a factor to be used on node priority assignments
+        static double convertToPriorityFactor(const sys_nano_diff& timeDiff) {
+            double scaledDuration = std::chrono::duration_cast<std::chrono::duration<double>>(timeDiff).count();
+            double scaleFactor = 1.0 / scaledDuration;
+            return scaleFactor;
         }
 
         //receives RTT in seconds

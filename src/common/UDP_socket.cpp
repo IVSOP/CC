@@ -72,5 +72,5 @@ ssize_t NodeUDPSocket::receiveData(void *buf, size_t len, struct sockaddr_in *fr
 ssize_t NodeUDPSocket::sendData(const void *buf, size_t len, struct sockaddr_in *to) {
     socklen_t l = sizeof(struct sockaddr_in);
     return sendto(node_fd, buf, len, 0, (const struct sockaddr *) to, l);
-};
+}
 

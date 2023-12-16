@@ -156,7 +156,7 @@ struct Client {
     void writeFileBlock(uint64_t fileHash, uint32_t blockN, char * buffer, size_t size);
 
 	void wrongChecksum(const FS_Transfer_Info &info);
-    void rightChecksum(const FS_Transfer_Info& info);
+    void rightChecksum(const FS_Transfer_Info& info, double scaleFactor);
     void checkTimeoutNodes(std::unordered_map<Ip, std::vector<uint32_t>>& updatedBlocks, uint64_t fileHash, sys_milli_diff timeoutTime); 
 
     void regDirectory(char* directory);
@@ -175,10 +175,10 @@ struct Client {
 
     // Node scheduling -----------
     // void regPacketSentTime(const FS_Transfer_Info& info, sys_nanoseconds sentTimestamp);
-    void updateNodeResponseTime(const FS_Transfer_Info& info, sys_nanoseconds arrivedTimestamp);
+    double updateNodeResponseTime(const FS_Transfer_Info& info, sys_nanoseconds arrivedTimestamp);
     void insert_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, const sys_nanoseconds& startTime);
     bool find_remove_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, sys_nanoseconds * retValue);
-    void insert_regRTT(const Ip& nodeIp, const sys_nanoseconds& timeSent, const sys_nanoseconds& timeReceived);
+    void insert_regRTT(const Ip& nodeIp, const sys_nano_diff& timeDiff);
     uint32_t getNodePriority(const Ip& nodeIp);
     void updateNodePriority(const Ip& nodeIp, int32_t value);
 
