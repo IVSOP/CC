@@ -22,8 +22,12 @@
 
 #define NODE_VALUE_SUCCESS 1
 #define NODE_VALUE_WRONG -2
-#define NODE_VALUE_TIMEOUT -5 // onde meter isto??
-// Struct to store sockaddr_in structs
+#define NODE_VALUE_TIMEOUT -5
+#define MAX_NODE_PRIORITY MAX_PRIO_VALUE
+#define MIN_NODE_PRIORITY MIN_PRIO_VALUE
+
+constexpr int32_t MIN_PRIO_VALUE = NODE_VALUE_TIMEOUT * 5;
+constexpr int32_t MAX_PRIO_VALUE = NODE_VALUE_SUCCESS * 20;
 
 //hash function for unordered_map pair structure
 struct KeyHash {
@@ -176,7 +180,7 @@ struct Client {
     bool find_remove_regPacket(const Ip& nodeIp, uint64_t file, uint32_t blockN, sys_nanoseconds * retValue);
     void insert_regRTT(const Ip& nodeIp, const sys_nanoseconds& timeSent, const sys_nanoseconds& timeReceived);
     uint32_t getNodePriority(const Ip& nodeIp);
-    void updateNodePriority(const Ip& nodeIp, uint32_t value);
+    void updateNodePriority(const Ip& nodeIp, int32_t value);
 
     // void printFull_node_sent_reg();
     void printFull_nodes_tracker();
@@ -208,7 +212,7 @@ struct Client {
 
     // Node scheduling 
     std::mutex nodes_priority_lock;
-    std::unordered_map<Ip, uint32_t> nodes_priority; // priority given to each node //começa com prioridade 0
+    std::unordered_map<Ip, int32_t> nodes_priority; // priority given to each node //começa com prioridade 0
     std::mutex nodes_tracker_lock;
     std::unordered_map<Ip, NodesRTT> nodes_tracker; // tracks last x amount of RTTs
 

@@ -157,7 +157,11 @@ void Client::rightChecksum(const FS_Transfer_Info& info) {
         return;
     }
 
-    if(opcode == 1) updateNodePriority(Ip(info.addr), NODE_VALUE_SUCCESS);
+    if(opcode == 1) {
+		uint64_t timestamp = info.packet.timestamp;
+		// prioridade do nodo vai ser maior se tiverem chegado em menos tempo os pacotes, em cada ronda de pedidos
+		updateNodePriority(Ip(info.addr), (int32_t) (NODE_VALUE_SUCCESS * 1/timestamp));
+	}
 
     (this->*dispatchTable[opcode])(info); // assign data to function with respective opcode
 
@@ -195,19 +199,23 @@ uint32_t Client::getNodePriority(const Ip& nodeIp) {
 }
 
 //incrementa valor à prioridade de nodo
-void Client::updateNodePriority(const Ip& nodeIp, uint32_t value) {
+void Client::updateNodePriority(const Ip& nodeIp, int32_t value) {
 	std::unique_lock<std::mutex> lock(this->nodes_priority_lock);
-	this->nodes_priority[nodeIp] += value;
+	int32_t newPrio = this->nodes_priority[nodeIp] + value;
+	// limit priority range, to make node priority more suscetible to changes
+	if (newPrio > MAX_PRIO_VALUE) newPrio = MAX_PRIO_VALUE;
+	else if (newPrio < MIN_PRIO_VALUE) newPrio = MIN_PRIO_VALUE;
+
+	this->nodes_priority[nodeIp] = newPrio;
 	lock.unlock();
 }
 
 //assume-se que UDP é zoom fast e não há delays a espera em buffers
 // push packet to output buffer
 void Client::sendInfo(FS_Transfer_Info &info) {
-
+	
 	outputBuffer.push(info);
 }
-
 
 //registar RTT aquando da chegada de pacote pedido
 void Client::updateNodeResponseTime(const FS_Transfer_Info& info, sys_nanoseconds timeArrived) {
