@@ -31,8 +31,8 @@
 #define MAX_NODE_PRIORITY MAX_PRIO_VALUE
 #define MIN_NODE_PRIORITY MIN_PRIO_VALUE
 
-constexpr int32_t MIN_PRIO_VALUE = NODE_VALUE_TIMEOUT * 5;
-constexpr int32_t MAX_PRIO_VALUE = NODE_VALUE_SUCCESS * 50;
+constexpr int32_t MIN_PRIO_VALUE = NODE_VALUE_TIMEOUT * 10;
+constexpr int32_t MAX_PRIO_VALUE = NODE_VALUE_SUCCESS * 100;
 
 //hash function for unordered_map pair structure
 struct KeyHash {
