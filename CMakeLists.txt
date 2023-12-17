@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 													   # por causa do core, precisa disto
-SET(GCC_COVERAGE_COMPILE_FLAGS "-o2 -Wall -Wextra -pedantic -pthread -std=c++17") # -Wno-unused-parameter -O2??? -ftree-vectorize -fopt-info-vec-missed or all or optimized
+SET(GCC_COVERAGE_COMPILE_FLAGS "-O2 -Wall -Wextra -pedantic -pthread -std=c++17") # -Wno-unused-parameter -O2??? -ftree-vectorize -fopt-info-vec-missed or all or optimized
 #SET(GCC_COVERAGE_LINK_FLAGS "-lssl -lcrypto")    # "-lgcov"
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
