@@ -245,7 +245,7 @@ public:
 
         message.regUpdateDataSetData(data);
 
-        printf("Update message with size %d\n", message.fsTrackGetSize());
+        // printf("Update message with size %d\n", message.fsTrackGetSize());
 
         sendMessage(socket, message);
     }

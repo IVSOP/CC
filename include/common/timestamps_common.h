@@ -78,8 +78,7 @@ template <class Duration>
         // Convert time point to std::tm
         auto sys_time_milliseconds = std::chrono::time_point_cast<std::chrono::milliseconds>(timePoint);
         std::time_t t_c = std::chrono::system_clock::to_time_t(sys_time_milliseconds);
-        /*
-        // std::tm tm = *std::gmtime(&t_c);
+        std::tm tm = *std::gmtime(&t_c);
 
         // Get the fractional seconds
         auto fractional_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(timePoint.time_since_epoch()).count();
@@ -87,18 +86,15 @@ template <class Duration>
         // Print the date with maximum precision
         std::cout << "Date: " << std::put_time(&tm, "%F %T") << "." << std::setprecision(9)
             << fractional_seconds - static_cast<int>(fractional_seconds) << " UTC" << std::endl;
-        */
         }
 
         static void printTimeDiff(const sys_nano_diff& timeDiff) {
         // Convert nanoseconds to seconds for printing
-        /*
         auto seconds = std::chrono::duration_cast<std::chrono::duration<double>>(timeDiff).count();
         std::cout.precision(15);
         // Print the duration in seconds with maximum precision
         std::cout << "Duration in nanoseconds: " << timeDiff.count() << "ns" << std::endl;
         std::cout << "Duration in seconds: " << seconds << " seconds" << std::endl;
-         */
         }
     };
     

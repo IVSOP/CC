@@ -236,24 +236,26 @@ void Client::insert_regRTT(const Ip& nodeIp, const sys_nano_diff& timeDiff) {
 	this->nodes_tracker_lock.unlock();
 }
 
-
 void Client::printFull_nodes_tracker() {
-	// std::cout << "\nFULL PRINT FOR NODES_TRACKER----\n" << std::endl;
+/*
+	std::cout << "\nFULL PRINT FOR NODES_TRACKER----\n" << std::endl;
 	for (const auto& outerPair: nodes_tracker) {
-		// const Ip& ip = outerPair.first;
-		// std::cout << "IP: " << inet_ntoa(ip.addr.sin_addr) << ", Port: " << ntohs(ip.addr.sin_port) << std::endl;
+		const Ip& ip = outerPair.first;
+		std::cout << "IP: " << inet_ntoa(ip.addr.sin_addr) << ", Port: " << ntohs(ip.addr.sin_port) << std::endl;
 
 		const NodesRTT& rtts = outerPair.second;
 		// printf("RTTs size: %d\n", rtts.size);
-		for (uint32_t i=0;i<rtts.size;i++) {
-			// std::cout << " " << std::endl;
+
+        for (uint32_t i=0;i<rtts.size;i++) {
+			std::cout << " " << std::endl;
 			NodesRTT::printTimeDiff(rtts.arr[i]);
 		}
 		for (uint32_t i=0;i<NODES_RTT_TRACK_SIZE-rtts.size;i++) {
-			// std::cout << "no data " << std::endl;
+			std::cout << "no data " << std::endl;
 		}
 	}
-	// printf("\n");
+	printf("\n");
+*/
 }
 
 void Client::printFull_nodes_priority() {
