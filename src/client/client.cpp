@@ -88,7 +88,7 @@ Client::~Client() {
 
 // read from socket into a buffer, does nothing else
 void Client::readLoop() {
-	puts("Init reading thread");
+	// puts("Init reading thread");
 	// very bad, copying memory for no reason
 	FS_Transfer_Info info;
 	while (true) {
@@ -99,14 +99,14 @@ void Client::readLoop() {
 
 // write from buffer into socket, does nothing else
 void Client::writeLoop() {
-	puts("Init writing thread");
+	// puts("Init writing thread");
 	FS_Transfer_Info info;
 	while (true) {
 		// very bad, copying memory for no reason
 		info = outputBuffer.pop();
 
         udpSocket.sendData(&info.packet, FS_TRANSFER_PACKET_SIZE, &info.addr);
-		printf("packet sent to node %s\n", inet_ntoa(info.addr.sin_addr));
+		// printf("packet sent to node %s\n", inet_ntoa(info.addr.sin_addr));
     }
 }
 
@@ -128,7 +128,7 @@ void Client::answerRequestsLoop() {
 // n processa o pacote, porque tem dados corrompidos
 void Client::wrongChecksum(const FS_Transfer_Info&info) {
 
-	printf("From node %s | WRONG: update value: %d\n", inet_ntoa(info.addr.sin_addr), NODE_VALUE_WRONG);
+	// printf("From node %s | WRONG: update value: %d\n", inet_ntoa(info.addr.sin_addr), NODE_VALUE_WRONG);
 	updateNodePriority(Ip(info.addr), NODE_VALUE_WRONG);
 }
 
@@ -144,7 +144,7 @@ void Client::rightChecksum(const FS_Transfer_Info& info, double scaleFactor) {
 
     if(opcode == 1) {
 		// prioridade do nodo vai ser maior se tiverem chegado em menos tempo os pacotes, em cada ronda de pedidos
-		printf("From node %s | SUCCESS: scaleFactor: %f, updated value wihtout cast: %f, with cast: %d \n",
+	//	printf("From node %s | SUCCESS: scaleFactor: %f, updated value wihtout cast: %f, with cast: %d \n",
 			inet_ntoa(info.addr.sin_addr), scaleFactor, NODE_VALUE_SUCCESS * scaleFactor, static_cast<int32_t> (NODE_VALUE_SUCCESS * scaleFactor));
 
 		updateNodePriority(Ip(info.addr), static_cast<int32_t> (NODE_VALUE_SUCCESS * scaleFactor));
@@ -165,7 +165,7 @@ void Client::checkTimeoutNodes(std::unordered_map<Ip, std::vector<uint32_t>>& re
             if (this->blocksPerFile[fileHash][block]) continue;
 
 			// se bloco não tiver chegado no tempo definido // excusa de haver locks, se ler errado porque chega no mesmo milisegundo o bloco, conta como timeout na mesma
-            printf("From node: %s | TIMEOUT: On blockRequest: %d\n", inet_ntoa(i->first.addr.sin_addr), block);
+            // printf("From node: %s | TIMEOUT: On blockRequest: %d\n", inet_ntoa(i->first.addr.sin_addr), block);
             updateNodePriority(i->first, NODE_VALUE_TIMEOUT);
             std::unique_lock<std::recursive_mutex> lock(this->nodes_tracker_lock);
             nodes_tracker[i->first].receive2(std::chrono::duration_cast<std::chrono::nanoseconds>(timeoutTime));
@@ -198,7 +198,7 @@ void Client::updateNodePriority(const Ip& nodeIp, int32_t value) {
 
 	lock.unlock();
 
-	printf("New node %s priority: %d\n", inet_ntoa(nodeIp.addr.sin_addr), getNodePriority(nodeIp));
+	// printf("New node %s priority: %d\n", inet_ntoa(nodeIp.addr.sin_addr), getNodePriority(nodeIp));
 }
 
 //assume-se que UDP é zoom fast e não há delays a espera em buffers
@@ -221,7 +221,7 @@ double Client::updateNodeResponseTime(const FS_Transfer_Info& info, sys_nanoseco
        		insert_regRTT(nodeIp,timeDiff);
 		}
 	}
-	printf("From node: %s, duration: ", inet_ntoa(info.addr.sin_addr));
+	// printf("From node: %s, duration: ", inet_ntoa(info.addr.sin_addr));
 	NodesRTT::printTimeDiff(timeDiff);
 
 	double timeScaleFactor = NodesRTT::convertToPriorityFactor(timeDiff);
@@ -238,30 +238,30 @@ void Client::insert_regRTT(const Ip& nodeIp, const sys_nano_diff& timeDiff) {
 
 
 void Client::printFull_nodes_tracker() {
-	std::cout << "\nFULL PRINT FOR NODES_TRACKER----\n" << std::endl;
+	// std::cout << "\nFULL PRINT FOR NODES_TRACKER----\n" << std::endl;
 	for (const auto& outerPair: nodes_tracker) {
 		const Ip& ip = outerPair.first;
-		std::cout << "IP: " << inet_ntoa(ip.addr.sin_addr) << ", Port: " << ntohs(ip.addr.sin_port) << std::endl;
+		// std::cout << "IP: " << inet_ntoa(ip.addr.sin_addr) << ", Port: " << ntohs(ip.addr.sin_port) << std::endl;
 
 		const NodesRTT& rtts = outerPair.second;
-		printf("RTTs size: %d\n", rtts.size);
+		// printf("RTTs size: %d\n", rtts.size);
 		for (uint32_t i=0;i<rtts.size;i++) {
-			std::cout << " " << std::endl;
+			// std::cout << " " << std::endl;
 			NodesRTT::printTimeDiff(rtts.arr[i]);
 		}
 		for (uint32_t i=0;i<NODES_RTT_TRACK_SIZE-rtts.size;i++) {
-			std::cout << "no data " << std::endl;
+			// std::cout << "no data " << std::endl;
 		}
 	}
-	printf("\n");
+	// printf("\n");
 }
 
 void Client::printFull_nodes_priority() {
-	std::cout << "\nFULL PRINT FOR NODES_PRIORITY----\n" << std::endl;
+	// std::cout << "\nFULL PRINT FOR NODES_PRIORITY----\n" << std::endl;
 	for (const auto& pair : this->nodes_priority) {
-		std::cout << "nodeIP : " << inet_ntoa(pair.first.addr.sin_addr) << " Priority:" << pair.second;
+		// std::cout << "nodeIP : " << inet_ntoa(pair.first.addr.sin_addr) << " Priority:" << pair.second;
 	}
-	printf("\n");
+	// printf("\n");
 }
 
 void Client::initUploadLoop() {
@@ -314,10 +314,10 @@ void Client::getFile(const char* dir, std::string filename){
     uint8_t* buffer = new uint8_t[BUFFER_SIZE];
 
     uint64_t hash = getFilenameHash((char*) filename.c_str(), filename.size());
-    printf("Asking for file %s (%lu)\n", filename.c_str(), hash);
+    // printf("Asking for file %s (%lu)\n", filename.c_str(), hash);
 
     FS_Track::sendGetMessage(this->socketToServer, hash);
-z
+
     message = FS_Track(); // cursed
 
     if(!FS_Track::readMessage(message, buffer, BUFFER_SIZE, this->socketToServer)){
@@ -325,9 +325,9 @@ z
         return;
     }
 
-    puts("Received info from server:");
+    // puts("Received info from server:");
 
-    printf("opcode: %u opt: %u size: %u hash: %lu\n", message.fsTrackGetOpcode(), (message.fsTrackGetOpt() ? 1 : 0), message.fsTrackGetSize(), message.fsTrackGetHash());
+    // printf("opcode: %u opt: %u size: %u hash: %lu\n", message.fsTrackGetOpcode(), (message.fsTrackGetOpt() ? 1 : 0), message.fsTrackGetSize(), message.fsTrackGetHash());
 
     std::vector<FS_Track::PostFileBlocksData> receivedData = message.postFileBlocksGetData();
 
@@ -336,11 +336,13 @@ z
         return;
     }
 
-    puts("Data received:");
+    // puts("Data received:");
 
+    /*
     for(const auto& d : receivedData){
         std::cout << d.hostname << " with " << d.block_numbers.size() << " blocks" << std::endl;
     }
+    */
 
     fetchFile(dir,filename.c_str(), hash, receivedData);
 
@@ -381,15 +383,15 @@ void Client::commandParser(const char * dir) {
 
 void Client::registerWithServer() {
     std::unique_lock<std::recursive_mutex> lock = std::unique_lock<std::recursive_mutex>(this->blocksPerFileMtx);
-	puts("Registering with server");
+	// puts("Registering with server");
     std::vector<FS_Track::RegUpdateData> data = std::vector<FS_Track::RegUpdateData>();
     for(const auto& pair: this->blocksPerFile){
-		printf("Adding file %lu\n", pair.first);
+		// printf("Adding file %lu\n", pair.first);
         data.emplace_back(pair.first, pair.second);
     }
 
 	FS_Track::sendRegMessage(this->socketToServer, data);
-	puts("File registration sent");
+	// puts("File registration sent");
 }
 
 void Client::regDirectory(char* dirPath){
@@ -455,7 +457,7 @@ void Client::regFile(const char* dir, char* fn) {
 	this->currentBlocksInEachFile.insert({hash,totalBlocks});
 	this->fileDescriptorMap.insert({hash, file});
 
-	printf("file: %s hash %lu\n", filePath, hash);
+	// printf("file: %s hash %lu\n", filePath, hash);
 }
 
 //registar ficheiro novo que se faz GET nas estruturas de ficheiros do cliente
@@ -472,7 +474,7 @@ void Client::regNewFile(const char* dir, const char* fn, size_t size) {
     }
 
     snprintf(filePath, FILENAME_BUFFER_SIZE, "%s%s", directory.c_str(), fn);
-	printf("file: %s\n",filePath);
+	// printf("file: %s\n",filePath);
 
 	FILE* file = fopen(filePath, "wb+"); // se ficheiro já existia, reescreve tudo, senão cria novo
 
@@ -502,14 +504,15 @@ void Client::regNewFile(const char* dir, const char* fn, size_t size) {
 
 //process a file request
 void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, std::vector<FS_Track::PostFileBlocksData>& receivedData) {
-	puts("Getting the file");
+	// puts("Getting the file");
 	uint32_t maxSize = 0;
 	std::vector<Ip> allNodeIps;
 	// par <este bloco, estes nodos>
 	std::vector<std::pair<uint32_t, std::vector<Ip>>> block_nodes = getBlockFiles(receivedData, &maxSize, allNodeIps);
 
-    puts("Block nodes data:");
+    // puts("Block nodes data:");
 
+    /*
     for(const auto& d : block_nodes){
         std::cout << "Block number: " << d.first << " can be received from nodes: ";
 
@@ -519,6 +522,7 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 
         std::cout << std::endl;
     }
+    */
 
 	//criar bitMap vazio para ficheiro que se fez get
 	regNewFile(dir, filename, maxSize);
@@ -557,8 +561,8 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
 	}
 
     if(tmp == 1){
-        printFull_nodes_tracker();
-        printFull_nodes_priority();
+        // printFull_nodes_tracker();
+        // printFull_nodes_priority();
         updateFileNodesServer(hash);
 
         std::cout << "File transfer completed" << std::endl;
@@ -689,7 +693,7 @@ void Client::updateFileNodesServer(uint64_t fileHash) {
 	bitMap& fileMap = this->blocksPerFile[fileHash];
 
 	//Enviar ao servidor
-	puts("Updating with server");
+	// puts("Updating with server");
     std::vector<FS_Track::RegUpdateData> data = std::vector<FS_Track::RegUpdateData>();
 	//debug
 
@@ -727,7 +731,7 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 
         Ip node = selectBestNode(i->second, nodes_blocks);
 
-        printf("Selected node with ip %s\n", inet_ntoa(node.addr.sin_addr));
+        // printf("Selected node with ip %s\n", inet_ntoa(node.addr.sin_addr));
 
 		if(nodes_blocks.at(node).size() >= MAX_BLOCKS_REQUESTS_PER_NODE) continue;
 
@@ -763,6 +767,7 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 
 		info = FS_Transfer_Info(packet, i->first);
 
+        /*
         printf("Sending data to node %s\nData being sent: ", inet_ntoa(info.addr.sin_addr));
 
         for(uint32_t j = 0; j < i->second.size(); j++){
@@ -770,6 +775,7 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
         }
 
         puts("");
+        */
 
 		// PrintRequestPacket(info); // debug
 
@@ -806,7 +812,7 @@ Ip Client::selectBestNode(std::vector<Ip>& available_nodes, std::unordered_map<I
 
 // gethostbyname is an obsolete function according to man page
 Ip *Client::getIpFromName(const std::string name) {
-	printf("looking up %s\n", name.c_str());
+	// printf("looking up %s\n", name.c_str());
 	// nao me apeteceu usar find() e iterators ate me deu umas dores so de pensar
 	if (nameToIP.contains(name) == false) {
 		// DNS lookup
@@ -831,9 +837,9 @@ Ip *Client::getIpFromName(const std::string name) {
 
 				char ip_address[INET_ADDRSTRLEN];
 				inet_ntop(AF_INET, &(ipv4_addr->sin_addr), ip_address, INET_ADDRSTRLEN);
-				printf("Name %s resolved to %s\n", hostname, ip_address);
+				// printf("Name %s resolved to %s\n", hostname, ip_address);
 				ip = Ip(*ipv4_addr);
-				printf("found %s\n", inet_ntoa(ipv4_addr->sin_addr));
+				// printf("found %s\n", inet_ntoa(ipv4_addr->sin_addr));
 
 				// porta UDP fica aqui
 				ip.addr.sin_family = AF_INET;
