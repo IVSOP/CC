@@ -16,19 +16,25 @@
 #define MAX_WRR_NON_UPDATE_TRIES 3
 
 Client::Client() // por default sockets aceitam tudo
-    : nameToIP(), socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), dispatchTable(), nodes_priority_lock(),
-	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
+    : nameToIP(), socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), blocksPerFileMtx(), currentBlocksInEachFile(), currentBlocksInEachFileMtx(),
+      fileDescriptorMap(), fileDescriptorMapMtx(), dispatchTable(), nodes_priority_lock(),	nodes_priority(), nodes_tracker_lock(), nodes_tracker(), threadGraveyardMtx(),
+      threadGraveyardCdt(), threadGraveyard()
 {
     // register
     initUploadLoop();
     assignDispatchTable();
     commandParser("./files"); // folder standard para ficheiros? importa?
 	//regDirectory("./files"); // improta?
+
+    ThreadRAII cleanUp(std::thread([&]()
+                                   { Client::cleanUpThreads(); /*Lambda Function*/ }),
+                       ThreadRAII::DtorAction::join);
 }
 
 Client::Client(char* dir) // por default sockets aceitam tudo
-	: nameToIP(), socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
-	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
+	: nameToIP(), socketToServer(SERVER_IP), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), blocksPerFileMtx(), currentBlocksInEachFile(), currentBlocksInEachFileMtx(),
+    fileDescriptorMap(), fileDescriptorMapMtx(), dispatchTable(), nodes_priority_lock(), nodes_priority(), nodes_tracker_lock(), nodes_tracker(), threadGraveyardMtx(),
+    threadGraveyardCdt(), threadGraveyard()
 {
     // register
     initUploadLoop();
@@ -36,11 +42,16 @@ Client::Client(char* dir) // por default sockets aceitam tudo
     regDirectory(dir);
     registerWithServer();
     commandParser(dir);
+
+    ThreadRAII cleanUp(std::thread([&]()
+                                   { Client::cleanUpThreads(); /*Lambda Function*/ }),
+                       ThreadRAII::DtorAction::join);
 }
 
 Client::Client(char* dir, const std::string &IPv4)
-	: nameToIP(), socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
-	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
+	: nameToIP(), socketToServer(IPv4), udpSocket(), inputBuffer(), outputBuffer(), blocksPerFile(), blocksPerFileMtx(), currentBlocksInEachFile(), currentBlocksInEachFileMtx(),
+    fileDescriptorMap(), fileDescriptorMapMtx(), dispatchTable(), nodes_priority_lock(), nodes_priority(), nodes_tracker_lock(), nodes_tracker(), threadGraveyardMtx(),
+    threadGraveyardCdt(), threadGraveyard()
 {
     // register
     initUploadLoop();
@@ -48,11 +59,16 @@ Client::Client(char* dir, const std::string &IPv4)
     regDirectory(dir);
     registerWithServer();
     commandParser(dir);
+
+    ThreadRAII cleanUp(std::thread([&]()
+                                   { Client::cleanUpThreads(); /*Lambda Function*/ }),
+                       ThreadRAII::DtorAction::join);
 }
 
 Client::Client(char* dir, const std::string &server_name, const std::string &myIPv4)
-: nameToIP(), socketToServer(&(getIpFromName(server_name)->addr)), udpSocket(myIPv4), inputBuffer(), outputBuffer(), blocksPerFile(), currentBlocksInEachFile(), fileDescriptorMap(), dispatchTable(), nodes_priority_lock(),
-	nodes_priority(), nodes_tracker_lock(), nodes_tracker()
+: nameToIP(), socketToServer(&(getIpFromName(server_name)->addr)), udpSocket(myIPv4), inputBuffer(), outputBuffer(), blocksPerFile(), blocksPerFileMtx(), currentBlocksInEachFile(),
+    currentBlocksInEachFileMtx(), fileDescriptorMap(), fileDescriptorMapMtx(), dispatchTable(), nodes_priority_lock(), nodes_priority(), nodes_tracker_lock(), nodes_tracker(),
+    threadGraveyardMtx(), threadGraveyardCdt(), threadGraveyard()
 {
 	// register
     initUploadLoop();
@@ -60,41 +76,15 @@ Client::Client(char* dir, const std::string &server_name, const std::string &myI
     regDirectory(dir);
     registerWithServer();
     commandParser(dir);
+
+    ThreadRAII cleanUp(std::thread([&]()
+                                   { Client::cleanUpThreads(); /*Lambda Function*/ }),
+                       ThreadRAII::DtorAction::join);
 }
 
 Client::~Client() {
     udpSocket.closeSocket();
 }
-
-
-// void printResponsePacket(FS_Transfer_Info& info) {
-// 	BlockSendData * b = static_cast<BlockSendData *> (info.packet.getData());
-// 	printf("BlockSendData packet>>>\n");
-// 	printf("sending to IP: %s, checksum:%u (it is %s), opcode: %u sizeOfData: %u fileId: %llu, blockId: %d\n", inet_ntoa(info.addr.sin_addr), info.packet.checksum,
-// 		info.packet.calculateChecksum() == info.packet.checksum ? "correct" : "wrong",
-// 		info.packet.getOpcode(), info.packet.getSize(), info.packet.getId(), b->blockID);
-// 	printf("Time packet was initially sent, not current time:\n");
-// 	sys_nanoseconds sent_time = sys_nanoseconds(std::chrono::nanoseconds(info.packet.timestamp)); 
-// 	NodesRTT::printTimePoint(sent_time);
-// 	printf("\n");
-// }
-
-// void PrintRequestPacket(FS_Transfer_Info& info) {
-// 	BlockRequestData * b = static_cast<BlockRequestData *> (info.packet.getData());
-// 	printf("BlockRequestData packet>>>\n");
-// 	printf("sending to IP: %s, checksum: %u, opcode: %u, sizeOfData: %u, fileId: %llu\n",inet_ntoa(info.addr.sin_addr), info.packet.checksum,
-// 		info.packet.getOpcode(),info.packet.getSize(), info.packet.id);
-
-// 	sys_nanoseconds sent_time = sys_nanoseconds(std::chrono::nanoseconds(info.packet.timestamp)); 
-// 	NodesRTT::printTimePoint(sent_time);
-
-// 	printf("blockIDs requested: ");
-// 	for (uint32_t i = 0; i < info.packet.getSize() / 4; i++) {
-// 		printf("%d ,",b->blockID[i]);
-// 	}
-// 	printf("\n");
-// }
-
 
 // read from socket into a buffer, does nothing else
 void Client::readLoop() {
@@ -104,14 +94,6 @@ void Client::readLoop() {
 	while (true) {
 		udpSocket.receiveData(&info.packet, FS_TRANSFER_PACKET_SIZE, &info.addr);
 		inputBuffer.push(info);
-
-		// printf("packet received from node %s\nData received: ", inet_ntoa(info.addr.sin_addr));
-
-        // for(uint32_t j = 0; j < info.packet.getSize(); j++){
-        //     printf("%d ", ((uint32_t*)info.packet.getData())[j]);
-        // }
-
-        // puts("");
 	}
 }
 
@@ -162,7 +144,7 @@ void Client::rightChecksum(const FS_Transfer_Info& info, double scaleFactor) {
 
     if(opcode == 1) {
 		// prioridade do nodo vai ser maior se tiverem chegado em menos tempo os pacotes, em cada ronda de pedidos
-		printf("From node %s | SUCCESS: scaleFactor: %f, updated value wihtout cast: %f, with cast: %d \n", 
+		printf("From node %s | SUCCESS: scaleFactor: %f, updated value wihtout cast: %f, with cast: %d \n",
 			inet_ntoa(info.addr.sin_addr), scaleFactor, NODE_VALUE_SUCCESS * scaleFactor, static_cast<int32_t> (NODE_VALUE_SUCCESS * scaleFactor));
 
 		updateNodePriority(Ip(info.addr), static_cast<int32_t> (NODE_VALUE_SUCCESS * scaleFactor));
@@ -176,6 +158,8 @@ void Client::rightChecksum(const FS_Transfer_Info& info, double scaleFactor) {
 // - decrementar prioridade do nodo
 // - aumentar RTT do respetivo nodo, para no próximo pedido ter timeout maior
 void Client::checkTimeoutNodes(std::unordered_map<Ip, std::vector<uint32_t>>& requested_blocks, uint64_t fileHash, sys_milli_diff timeoutTime) {
+    std::unique_lock<std::recursive_mutex> lock = std::unique_lock<std::recursive_mutex>(this->blocksPerFileMtx);
+
 	for (auto i = requested_blocks.begin(); i != requested_blocks.end(); i++) {
 		for (uint32_t block: i->second) {
             if (this->blocksPerFile[fileHash][block]) continue;
@@ -183,7 +167,7 @@ void Client::checkTimeoutNodes(std::unordered_map<Ip, std::vector<uint32_t>>& re
 			// se bloco não tiver chegado no tempo definido // excusa de haver locks, se ler errado porque chega no mesmo milisegundo o bloco, conta como timeout na mesma
             printf("From node: %s | TIMEOUT: On blockRequest: %d\n", inet_ntoa(i->first.addr.sin_addr), block);
             updateNodePriority(i->first, NODE_VALUE_TIMEOUT);
-            std::unique_lock<std::mutex> lock(this->nodes_tracker_lock);
+            std::unique_lock<std::recursive_mutex> lock(this->nodes_tracker_lock);
             nodes_tracker[i->first].receive2(std::chrono::duration_cast<std::chrono::nanoseconds>(timeoutTime));
             this->nodes_tracker_lock.unlock();
 
@@ -195,7 +179,7 @@ void Client::checkTimeoutNodes(std::unordered_map<Ip, std::vector<uint32_t>>& re
 
 //obter prioridade de nodo
 uint32_t Client::getNodePriority(const Ip& nodeIp) {
-	std::unique_lock<std::mutex> lock(this->nodes_priority_lock);
+	std::unique_lock<std::recursive_mutex> lock(this->nodes_priority_lock);
 	uint32_t res = this->nodes_priority[nodeIp];
 	lock.unlock();
 	return res;
@@ -204,7 +188,7 @@ uint32_t Client::getNodePriority(const Ip& nodeIp) {
 //incrementa valor à prioridade de nodo
 void Client::updateNodePriority(const Ip& nodeIp, int32_t value) {
 
-	std::unique_lock<std::mutex> lock(this->nodes_priority_lock);
+	std::unique_lock<std::recursive_mutex> lock(this->nodes_priority_lock);
 	int32_t newPrio = this->nodes_priority[nodeIp] + value;
 	// limit priority range, to make node priority more suscetible to changes
 	if (newPrio > MAX_PRIO_VALUE) newPrio = MAX_PRIO_VALUE;
@@ -226,9 +210,10 @@ void Client::sendInfo(FS_Transfer_Info &info) {
 
 //registar RTT aquando da chegada de pacote pedido
 double Client::updateNodeResponseTime(const FS_Transfer_Info& info, sys_nanoseconds timeArrived) {
+    std::unique_lock<std::recursive_mutex> lock = std::unique_lock<std::recursive_mutex>(this->blocksPerFileMtx);
 	sys_nanoseconds timeSent = sys_nanoseconds(std::chrono::nanoseconds(info.packet.timestamp));
 	sys_nano_diff timeDiff = timeArrived - timeSent;
-	
+
 	if (info.packet.getOpcode() == 1) { // se pacote recebido for dados de bloco pedido
 		Ip nodeIp = Ip(info.addr);
 
@@ -246,7 +231,7 @@ double Client::updateNodeResponseTime(const FS_Transfer_Info& info, sys_nanoseco
 
 //insere novo valor em nodes_tracker
 void Client::insert_regRTT(const Ip& nodeIp, const sys_nano_diff& timeDiff) {
-	std::unique_lock<std::mutex> lock(this->nodes_tracker_lock);
+	std::unique_lock<std::recursive_mutex> lock(this->nodes_tracker_lock);
 	nodes_tracker[nodeIp].receive2(timeDiff);
 	this->nodes_tracker_lock.unlock();
 }
@@ -324,12 +309,52 @@ std::vector<std::pair<uint32_t, std::vector<Ip>>> Client::getBlockFiles(std::vec
     return ans;
 }
 
+void Client::getFile(const char* dir, std::string filename){
+    FS_Track message;
+    uint8_t* buffer = new uint8_t[BUFFER_SIZE];
+
+    uint64_t hash = getFilenameHash((char*) filename.c_str(), filename.size());
+    printf("Asking for file %s (%lu)\n", filename.c_str(), hash);
+
+    FS_Track::sendGetMessage(this->socketToServer, hash);
+z
+    message = FS_Track(); // cursed
+
+    if(!FS_Track::readMessage(message, buffer, BUFFER_SIZE, this->socketToServer)){
+        print_error("No message received");
+        return;
+    }
+
+    puts("Received info from server:");
+
+    printf("opcode: %u opt: %u size: %u hash: %lu\n", message.fsTrackGetOpcode(), (message.fsTrackGetOpt() ? 1 : 0), message.fsTrackGetSize(), message.fsTrackGetHash());
+
+    std::vector<FS_Track::PostFileBlocksData> receivedData = message.postFileBlocksGetData();
+
+    if(receivedData.empty()) {
+        print_error("No data received");
+        return;
+    }
+
+    puts("Data received:");
+
+    for(const auto& d : receivedData){
+        std::cout << d.hostname << " with " << d.block_numbers.size() << " blocks" << std::endl;
+    }
+
+    fetchFile(dir,filename.c_str(), hash, receivedData);
+
+    delete [] (uint*) buffer;
+
+    std::unique_lock<std::recursive_mutex> lock = std::unique_lock<std::recursive_mutex>(this->threadGraveyardMtx);
+    this->threadGraveyardCdt.notify_one();
+}
+
 void Client::commandParser(const char * dir) {
 	std::string input;
     std::string command;
     std::string filename;
     FS_Track message;
-    uint8_t* buffer = new uint8_t[BUFFER_SIZE];
 
 	while (true) {
         std::cout << "What's the next command?" << std::endl;
@@ -345,48 +370,17 @@ void Client::commandParser(const char * dir) {
         filename = input.substr(splitAt+1);
 
         if (command == "get") {
-            uint64_t hash = getFilenameHash((char*) filename.c_str(), filename.size());
-			printf("Asking for file %s (%lu)\n", filename.c_str(), hash);
-
-			FS_Track::sendGetMessage(this->socketToServer, hash);
-
-            message = FS_Track(); // cursed
-
-            if(!FS_Track::readMessage(message, buffer, BUFFER_SIZE, this->socketToServer)){
-                print_error("No message received");
-                continue;
-            }
-
-			puts("Received info from server:");
-
-            printf("opcode: %u opt: %u size: %u hash: %lu\n", message.fsTrackGetOpcode(), (message.fsTrackGetOpt() ? 1 : 0), message.fsTrackGetSize(), message.fsTrackGetHash());
-
-            std::vector<FS_Track::PostFileBlocksData> receivedData = message.postFileBlocksGetData();
-
-            if(receivedData.empty()) {
-				print_error("No data received");
-                continue;
-            }
-
-            puts("Data received:");
-
-            for(const auto& d : receivedData){
-                std::cout << d.hostname << " with " << d.block_numbers.size() << " blocks" << std::endl;
-            }
-
-			fetchFile(dir,filename.c_str(), hash, receivedData);
+            this->threadGraveyard.emplace_back(std::thread([&](){Client::getFile(dir, filename);}), ThreadRAII::DtorAction::join);
         } else {
             printf("Invalid command\n");
         }
     }
 
     FS_Track::sendByeByeMessage(this->socketToServer);
-
-    delete [] (uint*) buffer;
 }
 
 void Client::registerWithServer() {
-
+    std::unique_lock<std::recursive_mutex> lock = std::unique_lock<std::recursive_mutex>(this->blocksPerFileMtx);
 	puts("Registering with server");
     std::vector<FS_Track::RegUpdateData> data = std::vector<FS_Track::RegUpdateData>();
     for(const auto& pair: this->blocksPerFile){
@@ -425,6 +419,10 @@ void Client::regDirectory(char* dirPath){
 }
 
 void Client::regFile(const char* dir, char* fn) {
+    std::unique_lock<std::recursive_mutex> blocksPerFileLock = std::unique_lock<std::recursive_mutex>(this->blocksPerFileMtx);
+    std::unique_lock<std::recursive_mutex> currentBlocksInEachFileMtxLock = std::unique_lock<std::recursive_mutex>(this->currentBlocksInEachFileMtx);
+    std::unique_lock<std::recursive_mutex> fileDescriptorMapMtxLock = std::unique_lock<std::recursive_mutex>(this->fileDescriptorMapMtx);
+
     char filePath[FILENAME_BUFFER_SIZE];
     snprintf(filePath, FILENAME_BUFFER_SIZE, "%s%s", dir, fn);
 
@@ -462,13 +460,17 @@ void Client::regFile(const char* dir, char* fn) {
 
 //registar ficheiro novo que se faz GET nas estruturas de ficheiros do cliente
 void Client::regNewFile(const char* dir, const char* fn, size_t size) {
+    std::unique_lock<std::recursive_mutex> blocksPerFileMtxLock = std::unique_lock<std::recursive_mutex>(this->blocksPerFileMtx);
+    std::unique_lock<std::recursive_mutex> currentBlocksInEachFileMtxLock = std::unique_lock<std::recursive_mutex>(this->currentBlocksInEachFileMtx);
+    std::unique_lock<std::recursive_mutex> fileDescriptorMapMtxLock = std::unique_lock<std::recursive_mutex>(this->fileDescriptorMapMtx);
+
 	char filePath[FILENAME_BUFFER_SIZE];
 	std::string directory = std::string(dir);
 
     if(directory.at(directory.size()-1) != '/'){
         directory.append("/");
     }
-	
+
     snprintf(filePath, FILENAME_BUFFER_SIZE, "%s%s", directory.c_str(), fn);
 	printf("file: %s\n",filePath);
 
@@ -519,7 +521,7 @@ void Client::fetchFile(const char * dir, const char * filename, uint64_t hash, s
     }
 
 	//criar bitMap vazio para ficheiro que se fez get
-	regNewFile(dir, filename, maxSize); 
+	regNewFile(dir, filename, maxSize);
 
 	//inicializar estruturas de nodos
 	for(auto& nodeIp : allNodeIps){
@@ -578,6 +580,9 @@ void Client::assignDispatchTable() {
 
 // preenche buffer dado com bloco de ficheiro, devolve size preenchido
 ssize_t Client::getFileBlock(uint64_t fileHash, uint32_t blockN, char * buffer) {
+    std::unique_lock<std::recursive_mutex> blocksPerFileMtxLock = std::unique_lock<std::recursive_mutex>(this->blocksPerFileMtx);
+    std::unique_lock<std::recursive_mutex> fileDescriptorMapMtxLock = std::unique_lock<std::recursive_mutex>(this->fileDescriptorMapMtx);
+
 	FILE * file = this->fileDescriptorMap[fileHash];
 	if (file) {
 		if ((this->blocksPerFile[fileHash].size() - 1) < blockN) {
@@ -596,6 +601,9 @@ ssize_t Client::getFileBlock(uint64_t fileHash, uint32_t blockN, char * buffer) 
 
 // write new block to file
 void Client::writeFileBlock(uint64_t fileHash, uint32_t blockN, char * buffer, size_t size) {
+    std::unique_lock<std::recursive_mutex> blocksPerFileMtxLock = std::unique_lock<std::recursive_mutex>(this->blocksPerFileMtx);
+    std::unique_lock<std::recursive_mutex> fileDescriptorMapMtxLock = std::unique_lock<std::recursive_mutex>(this->fileDescriptorMapMtx);
+
 	FILE * file = this->fileDescriptorMap[fileHash];
 
 	if (file) {
@@ -662,6 +670,8 @@ void Client::ReqBlockData(const FS_Transfer_Info& info) {
 
 //write to file received block data (previously requested)
 void Client::RespondBlockData(const FS_Transfer_Info& info) {
+    std::unique_lock<std::recursive_mutex> blocksPerFileMtxLock = std::unique_lock<std::recursive_mutex>(this->blocksPerFileMtx);
+    std::unique_lock<std::recursive_mutex> currentBlocksInEachFileMtxLock = std::unique_lock<std::recursive_mutex>(this->currentBlocksInEachFileMtx);
 	FS_Transfer_Packet packet = info.packet;
 	// printf("entrou no respond\n");
 	BlockSendData * blockData = static_cast<BlockSendData *>(packet.getData());
@@ -675,6 +685,7 @@ void Client::RespondBlockData(const FS_Transfer_Info& info) {
 
 //atualiza servidor com nodos possuidos atualmente
 void Client::updateFileNodesServer(uint64_t fileHash) {
+    std::unique_lock<std::recursive_mutex> lock = std::unique_lock<std::recursive_mutex>(this->blocksPerFileMtx);
 	bitMap& fileMap = this->blocksPerFile[fileHash];
 
 	//Enviar ao servidor
@@ -697,6 +708,7 @@ bool cmpBlocksAvailability(std::pair<uint32_t , std::vector<Ip>>& a, std::pair<u
 // começa por blocos mais raros, até mais comuns
 
 int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, std::vector<Ip>>>& block_nodes, std::unordered_map<Ip, std::vector<uint32_t>>& nodes_blocks, double* max_rtt, bool* updatedBlocks){
+    std::unique_lock<std::recursive_mutex> lock = std::unique_lock<std::recursive_mutex>(this->blocksPerFileMtx);
     nodes_blocks.clear(); //para cada ip quais blocos se vão pedir
     uint32_t maxSize = 0;
 	*max_rtt = 0;
@@ -704,7 +716,7 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
 	std::sort(block_nodes.begin(), block_nodes.end(), cmpBlocksAvailability); // blocos mais raros colocados primeiro
 
     for (auto i = block_nodes.begin(); i != block_nodes.end(); i++){
-		
+
 		//se bloco já tiver sido recebido, desde a iteração anterior
 		if(this->blocksPerFile.at(hash).at(i->first)){
 			block_nodes.erase(i);
@@ -736,14 +748,14 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
     for (auto i = nodes_blocks.begin(); i != nodes_blocks.end(); i++){
         if(i->second.size() == 0) continue;
 
-		std::unique_lock<std::mutex> lock(nodes_tracker_lock);
+		std::unique_lock<std::recursive_mutex> lock(nodes_tracker_lock);
 
         std::copy(i->second.begin(), i->second.end(), arr);
         ssize_t size = i->second.size() * sizeof(uint32_t);
 		*max_rtt = std::max(*max_rtt, this->nodes_tracker.at(i->first).RTT());
 
 		lock.unlock();
-		
+
         BlockRequestData data = BlockRequestData(arr, size);
 		sys_nanoseconds sentTime = std::chrono::system_clock::now();
 
@@ -760,7 +772,7 @@ int Client::weightedRoundRobin(uint64_t hash, std::vector<std::pair<uint32_t, st
         puts("");
 
 		// PrintRequestPacket(info); // debug
-	
+
         Client::sendInfo(info);
     }
 
@@ -832,7 +844,18 @@ Ip *Client::getIpFromName(const std::string name) {
 
 			freeaddrinfo(result);
 	}
-	// cursed se der mais do que 1 nome ou !!!!!!!!!!!!!!!!!!!!!
-	// printf("returning %s\n", inet_ntoa(nameToIP[name].addr.sin_addr));
+
+	// cursed se der mais do que 1 nome
 	return &nameToIP[name];
+}
+
+void Client::cleanUpThreads()
+{
+    std::unique_lock<std::recursive_mutex> lock = std::unique_lock<std::recursive_mutex>(this->threadGraveyardMtx);
+    while (true)
+    {
+        this->threadGraveyardCdt.wait(lock);
+
+        threadGraveyard.erase(threadGraveyard.begin(), threadGraveyard.end());
+    }
 }

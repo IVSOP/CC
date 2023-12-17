@@ -14,6 +14,7 @@
 #include "timestamps_common.h"
 #include "socket_common.h"
 #include "checksum.h"
+#include "threadRAII.h"
 
 //parâmetros modificáveis
 #define CLIENT_INPUT_BUFFER_SIZE 10
@@ -149,6 +150,7 @@ struct Client {
     void sendRequest();
 	void answerRequestsLoop();
 
+    void getFile(const char* dir, std::string filename);
     void fetchFile(const char * dir, const char * filename, uint64_t hash, std::vector<FS_Track::PostFileBlocksData>&);
     void sendInfo(FS_Transfer_Info &info);
 
@@ -194,6 +196,8 @@ struct Client {
 	// gets either from cache or DNS
 	Ip *getIpFromName(const std::string name);
 
+    void cleanUpThreads();
+
     ClientTCPSocket socketToServer;
     NodeUDPSocket udpSocket; // usamos apenas 1 socket para tudo
     std::thread readThread, writeThread, answererThread; // 1 thread loop read, 1 thread loop write, 1 thread loop responder pedidos (faz upload)
@@ -205,26 +209,34 @@ struct Client {
 	// sem controlo de concorrencia por agora, nao planeio usar varias threads aqui
     //track blocks that each file has
 	std::unordered_map<uint64_t, bitMap> blocksPerFile;
+    std::recursive_mutex blocksPerFileMtx;
 
     // juntar ao array de cima maybe
     std::unordered_map<uint64_t, uint32_t> currentBlocksInEachFile; // usado??
+    std::recursive_mutex currentBlocksInEachFileMtx;
     
     //track file descriptors for each filehash
     std::unordered_map<uint64_t, FILE*> fileDescriptorMap;
+    std::recursive_mutex fileDescriptorMapMtx;
 
     //dispatch table
     std::unordered_map<uint8_t,FS_Transfer_Packet_handler> dispatchTable;
 
     // Node scheduling 
-    std::mutex nodes_priority_lock;
+    std::recursive_mutex nodes_priority_lock;
     std::unordered_map<Ip, int32_t> nodes_priority; // priority given to each node //começa com prioridade 0
-    std::mutex nodes_tracker_lock;
+    std::recursive_mutex nodes_tracker_lock;
     std::unordered_map<Ip, NodesRTT> nodes_tracker; // tracks last x amount of RTTs
 
     //inicializados só uma vez, alterados com o decorrer
     FS_Transfer_Info dataFinal;
     FS_Transfer_Packet dataPacket;
     BlockSendData blockSend;
+
+    // Thread Graveyard
+    std::recursive_mutex threadGraveyardMtx;
+    std::condition_variable_any threadGraveyardCdt;
+    std::vector<ThreadRAII> threadGraveyard;
 };
 
 #endif
