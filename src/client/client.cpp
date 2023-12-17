@@ -145,7 +145,7 @@ void Client::rightChecksum(const FS_Transfer_Info& info, double scaleFactor) {
     if(opcode == 1) {
 		// prioridade do nodo vai ser maior se tiverem chegado em menos tempo os pacotes, em cada ronda de pedidos
 	//	printf("From node %s | SUCCESS: scaleFactor: %f, updated value wihtout cast: %f, with cast: %d \n",
-			inet_ntoa(info.addr.sin_addr), scaleFactor, NODE_VALUE_SUCCESS * scaleFactor, static_cast<int32_t> (NODE_VALUE_SUCCESS * scaleFactor));
+    //	inet_ntoa(info.addr.sin_addr), scaleFactor, NODE_VALUE_SUCCESS * scaleFactor, static_cast<int32_t> (NODE_VALUE_SUCCESS * scaleFactor));
 
 		updateNodePriority(Ip(info.addr), static_cast<int32_t> (NODE_VALUE_SUCCESS * scaleFactor));
 	}
@@ -240,7 +240,7 @@ void Client::insert_regRTT(const Ip& nodeIp, const sys_nano_diff& timeDiff) {
 void Client::printFull_nodes_tracker() {
 	// std::cout << "\nFULL PRINT FOR NODES_TRACKER----\n" << std::endl;
 	for (const auto& outerPair: nodes_tracker) {
-		const Ip& ip = outerPair.first;
+		// const Ip& ip = outerPair.first;
 		// std::cout << "IP: " << inet_ntoa(ip.addr.sin_addr) << ", Port: " << ntohs(ip.addr.sin_port) << std::endl;
 
 		const NodesRTT& rtts = outerPair.second;
@@ -257,11 +257,11 @@ void Client::printFull_nodes_tracker() {
 }
 
 void Client::printFull_nodes_priority() {
-	// std::cout << "\nFULL PRINT FOR NODES_PRIORITY----\n" << std::endl;
+	std::cout << "\nFULL PRINT FOR NODES_PRIORITY----\n" << std::endl;
 	for (const auto& pair : this->nodes_priority) {
-		// std::cout << "nodeIP : " << inet_ntoa(pair.first.addr.sin_addr) << " Priority:" << pair.second;
+		std::cout << "nodeIP : " << inet_ntoa(pair.first.addr.sin_addr) << " Priority:" << pair.second;
 	}
-	// printf("\n");
+	printf("\n");
 }
 
 void Client::initUploadLoop() {
